@@ -1,6 +1,8 @@
 package main
 
 import (
+	"briangreenhill/coachgpt/cache"
+	"briangreenhill/coachgpt/strava"
 	"encoding/json"
 	"os"
 	"testing"
@@ -12,18 +14,18 @@ func TestSecToHHMM(t *testing.T) {
 		sec      int64
 		expected string
 	}{
-		{3661, "1:01"},   // 1 hour 1 minute 1 second
-		{3600, "1:00"},   // 1 hour
-		{61, "0:01"},     // 1 minute 1 second
-		{59, "0:00"},     // 59 seconds
-		{7200, "2:00"},   // 2 hours
-		{0, "0:00"},      // 0 seconds
+		{3661, "1:01"}, // 1 hour 1 minute 1 second
+		{3600, "1:00"}, // 1 hour
+		{61, "0:01"},   // 1 minute 1 second
+		{59, "0:00"},   // 59 seconds
+		{7200, "2:00"}, // 2 hours
+		{0, "0:00"},    // 0 seconds
 	}
 
 	for _, tt := range tests {
-		result := secToHHMM(tt.sec)
+		result := strava.SecToHHMM(tt.sec)
 		if result != tt.expected {
-			t.Errorf("secToHHMM(%d) = %s, want %s", tt.sec, result, tt.expected)
+			t.Errorf("SecToHHMM(%d) = %s, want %s", tt.sec, result, tt.expected)
 		}
 	}
 }
@@ -34,18 +36,18 @@ func TestPaceFromMoving(t *testing.T) {
 		time     int64
 		expected string
 	}{
-		{1000, 300, "5:00"},    // 5 min/km
-		{1000, 240, "4:00"},    // 4 min/km
-		{5000, 1500, "5:00"},   // 5 min/km over 5km
-		{0, 300, "-"},          // zero distance
-		{1000, 0, "-"},         // zero time
-		{1000, 360, "6:00"},    // 6 min/km
+		{1000, 300, "5:00"},  // 5 min/km
+		{1000, 240, "4:00"},  // 4 min/km
+		{5000, 1500, "5:00"}, // 5 min/km over 5km
+		{0, 300, "-"},        // zero distance
+		{1000, 0, "-"},       // zero time
+		{1000, 360, "6:00"},  // 6 min/km
 	}
 
 	for _, tt := range tests {
-		result := paceFromMoving(tt.distance, tt.time)
+		result := strava.PaceFromMoving(tt.distance, tt.time)
 		if result != tt.expected {
-			t.Errorf("paceFromMoving(%.0f, %d) = %s, want %s", tt.distance, tt.time, result, tt.expected)
+			t.Errorf("PaceFromMoving(%.0f, %d) = %s, want %s", tt.distance, tt.time, result, tt.expected)
 		}
 	}
 }
@@ -53,41 +55,41 @@ func TestPaceFromMoving(t *testing.T) {
 func TestComputeZones(t *testing.T) {
 	hrmax := 180
 	hrData := []float64{
-		90,   // Z1 (50% of 180)
-		126,  // Z1 (70% of 180) - exactly on the boundary, should be Z1
-		135,  // Z2 (75% of 180)
-		150,  // Z3 (83% of 180)
-		165,  // Z4 (92% of 180)
-		175,  // Z5 (97% of 180)
-		0,    // Should be ignored
-		-1,   // Should be ignored
+		90,  // Z1 (50% of 180)
+		126, // Z1 (70% of 180) - exactly on the boundary, should be Z1
+		135, // Z2 (75% of 180)
+		150, // Z3 (83% of 180)
+		165, // Z4 (92% of 180)
+		175, // Z5 (97% of 180)
+		0,   // Should be ignored
+		-1,  // Should be ignored
 	}
 
-	zones := computeZones(hrData, hrmax)
+	zones := strava.ComputeZones(hrData, hrmax)
 
 	// 126 is exactly 70% of 180, which should be Z1 (< 70%)
 	// So we have: 90 (Z1), 126 (Z1) -> Z1=2
-	// 135 (Z2) -> Z2=1  
+	// 135 (Z2) -> Z2=1
 	// 150 (Z3) -> Z3=1
 	// 165 (Z4) -> Z4=1
 	// 175 (Z5) -> Z5=1
 	expected := [5]int{1, 2, 1, 1, 1}
 
 	if zones != expected {
-		t.Errorf("computeZones() = %v, want %v", zones, expected)
+		t.Errorf("ComputeZones() = %v, want %v", zones, expected)
 	}
 }
 
 func TestComputeSplitHR(t *testing.T) {
-	splits := []Split{
+	splits := []strava.Split{
 		{Split: 1, Distance: 1000, ElapsedTime: 300, MovingTime: 300, ElevationDifference: 10},
 		{Split: 2, Distance: 1000, ElapsedTime: 300, MovingTime: 300, ElevationDifference: -5},
 	}
 
-	timeStream := []float64{0, 150, 300, 450, 600}  // 5 data points
-	hrStream := []float64{120, 130, 140, 150, 160}  // corresponding HR
+	timeStream := []float64{0, 150, 300, 450, 600} // 5 data points
+	hrStream := []float64{120, 130, 140, 150, 160} // corresponding HR
 
-	result := computeSplitHR(splits, timeStream, hrStream)
+	result := strava.ComputeSplitHR(splits, timeStream, hrStream)
 
 	if len(result) != 2 {
 		t.Fatalf("Expected 2 splits, got %d", len(result))
@@ -115,29 +117,35 @@ func TestCacheOperations(t *testing.T) {
 	os.Setenv("HOME", tmpDir)
 	defer os.Setenv("HOME", originalHome)
 
+	// Create cache
+	cacheImpl, err := cache.NewStravaCache()
+	if err != nil {
+		t.Fatalf("Failed to create cache: %v", err)
+	}
+
 	// Test cache key generation
-	key := keyFor("/test/path", map[string]string{"param1": "value1", "param2": "value2"})
-	expected := "_test_path__param1=value1__param2=value2.json"
+	key := cacheImpl.KeyFor("/test/path", map[string]string{"param1": "value1", "param2": "value2"})
+	expected := "_test_path__param1_value1__param2_value2.json"
 	if key != expected {
-		t.Errorf("keyFor() = %s, want %s", key, expected)
+		t.Errorf("KeyFor() = %s, want %s", key, expected)
 	}
 
 	// Test write and read cache
-	testEntry := &cacheEntry{
+	testEntry := &cache.Entry{
 		FetchedAt: time.Now(),
 		ETag:      "test-etag",
 		Body:      json.RawMessage(`{"test": "data"}`),
 	}
 
-	err := writeCache("test", testEntry)
+	err = cacheImpl.Write("test", testEntry)
 	if err != nil {
-		t.Fatalf("writeCache failed: %v", err)
+		t.Fatalf("Write failed: %v", err)
 	}
 
 	// Read back with no max age (should succeed)
-	readEntry, err := readCache("test", 0)
-	if err != nil {
-		t.Fatalf("readCache failed: %v", err)
+	readEntry, exists := cacheImpl.Read("test", 0)
+	if !exists {
+		t.Fatalf("Read failed: entry not found")
 	}
 
 	if readEntry.ETag != testEntry.ETag {
@@ -149,76 +157,54 @@ func TestCacheOperations(t *testing.T) {
 		var original, read map[string]interface{}
 		json.Unmarshal(testEntry.Body, &original)
 		json.Unmarshal(readEntry.Body, &read)
-		
+
 		if original["test"] != read["test"] {
 			t.Errorf("Body content mismatch")
 		}
 	}
 
 	// Test stale cache detection
-	_, err = readCache("test", time.Nanosecond) // Very short max age
-	if err == nil {
-		t.Error("Expected stale cache error, got nil")
+	_, exists = cacheImpl.Read("test", time.Nanosecond) // Very short max age
+	if exists {
+		t.Error("Expected stale cache to be expired, but it was found")
 	}
 }
 
-// Test mock HTTP server for API calls
-func TestAPIGETCachedMockResponse(t *testing.T) {
-	// Set up test environment
-	tmpDir := t.TempDir()
-	originalHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", originalHome)
-
-	// Set no cache for this test
-	originalNoCache := noCache
-	noCache = true
-	defer func() { noCache = originalNoCache }()
-
-	// Test the cache key generation and ETag functionality
-	// since we can't easily mock the API base URL (it's a const)
-	testEntry := &cacheEntry{
-		FetchedAt: time.Now(),
-		ETag:      "test-etag-123",
-		Body:      json.RawMessage(`{"id": 12345, "name": "Test Run", "sport_type": "Run"}`),
+// Test Strava client creation
+func TestStravaClientCreation(t *testing.T) {
+	client := strava.NewClient("test_id", "test_secret")
+	if client == nil {
+		t.Fatal("NewClient returned nil")
 	}
 
-	err := writeCache("test_api_call", testEntry)
+	if client.ClientID != "test_id" {
+		t.Errorf("Expected ClientID 'test_id', got %s", client.ClientID)
+	}
+
+	if client.ClientSecret != "test_secret" {
+		t.Errorf("Expected ClientSecret 'test_secret', got %s", client.ClientSecret)
+	}
+
+	// Test with cache
+	cacheImpl, err := cache.NewStravaCache()
 	if err != nil {
-		t.Fatalf("writeCache failed: %v", err)
+		t.Fatalf("Failed to create cache: %v", err)
 	}
-
-	// Verify we can read it back
-	readEntry, err := readCache("test_api_call", time.Hour)
-	if err != nil {
-		t.Fatalf("readCache failed: %v", err)
-	}
-
-	if readEntry.ETag != testEntry.ETag {
-		t.Errorf("ETag mismatch: got %s, want %s", readEntry.ETag, testEntry.ETag)
-	}
-
-	// Test that we can unmarshal the cached data
-	var activity Activity
-	err = json.Unmarshal(readEntry.Body, &activity)
-	if err != nil {
-		t.Fatalf("Failed to unmarshal cached activity: %v", err)
-	}
-
-	if activity.ID != 12345 {
-		t.Errorf("Expected ID 12345, got %d", activity.ID)
+	clientWithCache := strava.NewClientWithCache("test_id", "test_secret", cacheImpl)
+	if clientWithCache == nil {
+		t.Error("Client with cache should not be nil")
 	}
 }
 
 // Test lap elevation calculation
 func TestLapElevationFromStreams(t *testing.T) {
 	altitude := []float64{100, 105, 110, 108, 115, 112, 120, 118}
-	lap := Lap{
+	lap := strava.Lap{
 		StartIndex: 1,
 		EndIndex:   6, // indices 1-5 inclusive
 	}
 
-	result := lapElevationFromStreams(lap, altitude)
+	result := strava.LapElevationFromStreams(lap, altitude)
 
 	// From indices 1-5: 105->110(+5) -> 108(-2) -> 115(+7) -> 112(-3)
 	// Gain: 5 + 7 = 12
@@ -244,8 +230,8 @@ func TestLapElevationFromStreams_EdgeCases(t *testing.T) {
 	altitude := []float64{100, 105, 110}
 
 	// Test with invalid indices
-	lap := Lap{StartIndex: -1, EndIndex: 10}
-	result := lapElevationFromStreams(lap, altitude)
+	lap := strava.Lap{StartIndex: -1, EndIndex: 10}
+	result := strava.LapElevationFromStreams(lap, altitude)
 
 	// Should handle gracefully and return zero values
 	if result.Gain != 10 || result.Loss != 0 || result.Net != 10 {
@@ -254,9 +240,9 @@ func TestLapElevationFromStreams_EdgeCases(t *testing.T) {
 	}
 
 	// Test with empty altitude data
-	emptyLap := Lap{StartIndex: 0, EndIndex: 2}
-	emptyResult := lapElevationFromStreams(emptyLap, []float64{})
-	
+	emptyLap := strava.Lap{StartIndex: 0, EndIndex: 2}
+	emptyResult := strava.LapElevationFromStreams(emptyLap, []float64{})
+
 	if emptyResult.Gain != 0 || emptyResult.Loss != 0 || emptyResult.Net != 0 {
 		t.Errorf("Expected all zeros for empty altitude, got gain=%d, loss=%d, net=%d",
 			emptyResult.Gain, emptyResult.Loss, emptyResult.Net)
@@ -266,7 +252,7 @@ func TestLapElevationFromStreams_EdgeCases(t *testing.T) {
 // Integration test for the main data structures
 func TestActivityDataStructures(t *testing.T) {
 	// Test that our data structures can be properly marshaled/unmarshaled
-	activity := Activity{
+	activity := strava.Activity{
 		ID:                 123456789,
 		Name:               "Morning Run",
 		SportType:          "Run",
@@ -276,7 +262,7 @@ func TestActivityDataStructures(t *testing.T) {
 		AverageHeartRate:   145,
 		TotalElevationGain: 150,
 		StartDateLocal:     "2024-08-19T07:00:00Z",
-		SplitsMetric: []Split{
+		SplitsMetric: []strava.Split{
 			{Split: 1, Distance: 1000, ElapsedTime: 300, MovingTime: 295, AverageSpeed: 3.39},
 			{Split: 2, Distance: 1000, ElapsedTime: 305, MovingTime: 300, AverageSpeed: 3.33},
 		},
@@ -289,7 +275,7 @@ func TestActivityDataStructures(t *testing.T) {
 	}
 
 	// Unmarshal back
-	var unmarshaled Activity
+	var unmarshaled strava.Activity
 	err = json.Unmarshal(data, &unmarshaled)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal activity: %v", err)

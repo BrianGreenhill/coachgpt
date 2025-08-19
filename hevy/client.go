@@ -14,6 +14,13 @@ import (
 
 const DefaultBaseURL = "https://api.hevyapp.com" // adjust if needed
 
+// Cache interface for HTTP response caching with ETag support
+type Cache interface {
+	Read(key string, ttl time.Duration) (body []byte, etag string, ok bool)
+	Write(key string, body []byte, etag string)
+	ETag(key string) string
+}
+
 type Client struct {
 	http    *http.Client
 	baseURL *url.URL
