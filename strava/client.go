@@ -1,7 +1,6 @@
 package strava
 
 import (
-	"briangreenhill/coachgpt/cache"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -29,7 +28,7 @@ type Client struct {
 	ClientID     string
 	ClientSecret string
 	NoCache      bool
-	Cache        cache.Cache
+	HTTPClient   *http.Client
 }
 
 // Tokens represents OAuth2 tokens from Strava
@@ -50,13 +49,13 @@ func NewClient(clientID, clientSecret string) *Client {
 	}
 }
 
-// NewClientWithCache creates a new Strava client with custom cache implementation
-func NewClientWithCache(clientID, clientSecret string, cacheImpl cache.Cache) *Client {
+// NewClientWithHTTP creates a new Strava client with a custom HTTP client
+func NewClientWithHTTP(clientID, clientSecret string, httpClient *http.Client) *Client {
 	return &Client{
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
 		NoCache:      os.Getenv("STRAVA_NOCACHE") == "1",
-		Cache:        cacheImpl,
+		HTTPClient:   httpClient,
 	}
 }
 

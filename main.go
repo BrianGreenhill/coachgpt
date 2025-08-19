@@ -1,15 +1,16 @@
 package main
 
 import (
-	"briangreenhill/coachgpt/cache"
 	"briangreenhill/coachgpt/hevy"
 	"briangreenhill/coachgpt/strava"
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"strconv"
-	"time"
+
+	"github.com/gregjones/httpcache"
 )
 
 func main() {
@@ -74,12 +75,12 @@ func runStravaIntegration() {
 		activityID = v
 	}
 
-	// Create Strava client with unified cache
-	stravaCache, err := cache.NewStravaCache()
-	if err != nil {
-		log.Fatalf("failed to create cache: %v", err)
-	}
-	client := strava.NewClientWithCache(clientID, clientSecret, stravaCache)
+	// Create HTTP client with caching transport
+	transport := httpcache.NewMemoryCacheTransport()
+	httpClient := &http.Client{Transport: transport}
+	
+	// Create Strava client with cached HTTP client
+	client := strava.NewClientWithHTTP(clientID, clientSecret, httpClient)
 
 	// Create Strava plugin
 	plugin := strava.NewPlugin(client, hrmax)
@@ -105,14 +106,12 @@ func runStrengthIntegration() {
 		log.Fatal("Please set HEVY_API_KEY environment variable")
 	}
 
-	// Create unified cache and adapt it for Hevy
-	baseCache, err := cache.NewHevyCache()
-	if err != nil {
-		log.Fatalf("failed to create cache: %v", err)
-	}
-	hevyCache := cache.NewHevyAdapter(baseCache)
+	// Create HTTP client with caching transport
+	transport := httpcache.NewMemoryCacheTransport()
+	httpClient := &http.Client{Transport: transport}
 
-	client, err := hevy.New(apiKey, hevy.WithCache(hevyCache, 24*time.Hour))
+	// Create Hevy client with cached HTTP client
+	client, err := hevy.New(apiKey, hevy.WithHTTPClient(httpClient))
 	if err != nil {
 		log.Fatalf("Failed to create Hevy client: %v", err)
 	}

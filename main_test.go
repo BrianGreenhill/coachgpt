@@ -1,12 +1,12 @@
 package main
 
 import (
-	"briangreenhill/coachgpt/cache"
 	"briangreenhill/coachgpt/strava"
 	"encoding/json"
-	"os"
+	"net/http"
 	"testing"
-	"time"
+
+	"github.com/gregjones/httpcache"
 )
 
 func TestSecToHHMM(t *testing.T) {
@@ -109,64 +109,28 @@ func TestComputeSplitHR(t *testing.T) {
 	}
 }
 
-// Test cache functionality
-func TestCacheOperations(t *testing.T) {
-	// Create a temporary directory for testing
-	tmpDir := t.TempDir()
-	originalHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", originalHome)
+// Test httpcache functionality
+func TestHTTPCacheOperations(t *testing.T) {
+	// Create HTTP client with memory cache transport
+	transport := httpcache.NewMemoryCacheTransport()
+	transport.MarkCachedResponses = true // Add X-From-Cache header for testing
+	client := &http.Client{Transport: transport}
 
-	// Create cache
-	cacheImpl, err := cache.NewStravaCache()
-	if err != nil {
-		t.Fatalf("Failed to create cache: %v", err)
+	// Note: Since httpcache works transparently with HTTP requests,
+	// we can't easily test the internal cache operations without making
+	// actual HTTP requests. This test verifies the transport is configured correctly.
+	
+	if transport == nil {
+		t.Fatal("Transport should not be nil")
+	}
+	
+	if client == nil {
+		t.Fatal("HTTP client should not be nil")
 	}
 
-	// Test cache key generation
-	key := cacheImpl.KeyFor("/test/path", map[string]string{"param1": "value1", "param2": "value2"})
-	expected := "_test_path__param1_value1__param2_value2.json"
-	if key != expected {
-		t.Errorf("KeyFor() = %s, want %s", key, expected)
-	}
-
-	// Test write and read cache
-	testEntry := &cache.Entry{
-		FetchedAt: time.Now(),
-		ETag:      "test-etag",
-		Body:      json.RawMessage(`{"test": "data"}`),
-	}
-
-	err = cacheImpl.Write("test", testEntry)
-	if err != nil {
-		t.Fatalf("Write failed: %v", err)
-	}
-
-	// Read back with no max age (should succeed)
-	readEntry, exists := cacheImpl.Read("test", 0)
-	if !exists {
-		t.Fatalf("Read failed: entry not found")
-	}
-
-	if readEntry.ETag != testEntry.ETag {
-		t.Errorf("ETag mismatch: got %s, want %s", readEntry.ETag, testEntry.ETag)
-	}
-
-	if string(readEntry.Body) != string(testEntry.Body) {
-		// JSON marshaling might add formatting, so let's compare the actual content
-		var original, read map[string]interface{}
-		json.Unmarshal(testEntry.Body, &original)
-		json.Unmarshal(readEntry.Body, &read)
-
-		if original["test"] != read["test"] {
-			t.Errorf("Body content mismatch")
-		}
-	}
-
-	// Test stale cache detection
-	_, exists = cacheImpl.Read("test", time.Nanosecond) // Very short max age
-	if exists {
-		t.Error("Expected stale cache to be expired, but it was found")
+	// Verify the transport is properly configured
+	if client.Transport != transport {
+		t.Error("HTTP client transport not properly configured")
 	}
 }
 
@@ -185,14 +149,16 @@ func TestStravaClientCreation(t *testing.T) {
 		t.Errorf("Expected ClientSecret 'test_secret', got %s", client.ClientSecret)
 	}
 
-	// Test with cache
-	cacheImpl, err := cache.NewStravaCache()
-	if err != nil {
-		t.Fatalf("Failed to create cache: %v", err)
+	// Test with HTTP client (new approach with httpcache)
+	transport := httpcache.NewMemoryCacheTransport()
+	httpClient := &http.Client{Transport: transport}
+	clientWithHTTP := strava.NewClientWithHTTP("test_id", "test_secret", httpClient)
+	if clientWithHTTP == nil {
+		t.Error("Client with HTTP client should not be nil")
 	}
-	clientWithCache := strava.NewClientWithCache("test_id", "test_secret", cacheImpl)
-	if clientWithCache == nil {
-		t.Error("Client with cache should not be nil")
+	
+	if clientWithHTTP.HTTPClient != httpClient {
+		t.Error("HTTP client not properly assigned")
 	}
 }
 

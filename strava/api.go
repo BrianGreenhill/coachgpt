@@ -1,7 +1,6 @@
 package strava
 
 import (
-	"briangreenhill/coachgpt/cache"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -68,7 +67,7 @@ type Streams struct {
 	Altitude       Stream `json:"altitude"`
 }
 
-// apiGETCached performs a cached GET request to the Strava API
+// apiGETCached performs a GET request to the Strava API with automatic caching via httpcache
 func (c *Client) apiGETCached(token, path string, params map[string]string, out any, ttl time.Duration) error {
 	u := APIBase + path
 	req, _ := http.NewRequest("GET", u, nil)
@@ -81,58 +80,26 @@ func (c *Client) apiGETCached(token, path string, params map[string]string, out 
 		req.URL.RawQuery = q.Encode()
 	}
 
-	var cacheName string
-	if c.Cache != nil {
-		cacheName = c.Cache.KeyFor(path, params)
+	// Use the HTTP client (with caching transport if configured)
+	client := c.HTTPClient
+	if client == nil {
+		client = http.DefaultClient
 	}
 
-	// Try fresh-enough cache
-	if !c.NoCache && c.Cache != nil && cacheName != "" {
-		if entry, exists := c.Cache.Read(cacheName, ttl); exists && len(entry.Body) > 0 {
-			return json.Unmarshal(entry.Body, out)
-		}
-	}
-
-	// Try ETag (revalidation) if we have any cache (even if stale)
-	if c.Cache != nil && cacheName != "" {
-		if entry, _ := c.Cache.Read(cacheName, 0); entry != nil && entry.ETag != "" {
-			req.Header.Set("If-None-Match", entry.ETag)
-			resp, err := http.DefaultClient.Do(req)
-			if err == nil && resp.StatusCode == http.StatusNotModified {
-				// 304 -> use cached body
-				_ = resp.Body.Close()
-				return json.Unmarshal(entry.Body, out)
-			}
-			// fall through to normal fetch if error or not 304
-			if resp != nil {
-				io.Copy(io.Discard, resp.Body)
-				resp.Body.Close()
-			}
-		}
-	}
-
-	// Normal fetch
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
+	
 	if resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("GET %s -> %s: %s", path, resp.Status, string(body))
 	}
+	
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
-	}
-
-	// Save cache with new ETag (if any)
-	if c.Cache != nil && cacheName != "" {
-		entry := &cache.Entry{
-			ETag: resp.Header.Get("ETag"),
-			Body: json.RawMessage(body),
-		}
-		_ = c.Cache.Write(cacheName, entry)
 	}
 
 	return json.Unmarshal(body, out)
