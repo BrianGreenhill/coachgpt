@@ -1,6 +1,7 @@
 package main
 
 import (
+	"briangreenhill/coachgpt/hevy"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -20,11 +21,11 @@ import (
 )
 
 const (
-	authBase  = "https://www.strava.com/oauth/authorize"
-	tokenURL  = "https://www.strava.com/oauth/token"
-	apiBase   = "https://www.strava.com/api/v3"
-	tokenFile = "strava_token.json"
-	redirect  = "http://127.0.0.1:8723/cb"
+	stravaAuthBase  = "https://www.strava.com/oauth/authorize"
+	stravaTokenURL  = "https://www.strava.com/oauth/token"
+	stravaApiBase   = "https://www.strava.com/api/v3"
+	stravaTokenFile = "strava_token.json"
+	stravaRedirect  = "http://127.0.0.1:8723/cb"
 )
 
 var noCache = os.Getenv("STRAVA_NOCACHE") == "1"
@@ -46,7 +47,7 @@ func homeFile(name string) (string, error) {
 }
 
 func loadTokens() (*Tokens, error) {
-	path, err := homeFile(tokenFile)
+	path, err := homeFile(stravaTokenFile)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +63,7 @@ func loadTokens() (*Tokens, error) {
 }
 
 func saveTokens(t *Tokens) error {
-	path, err := homeFile(tokenFile)
+	path, err := homeFile(stravaTokenFile)
 	if err != nil {
 		return err
 	}
@@ -93,7 +94,7 @@ func ensureTokens(clientID, clientSecret string) string {
 				"grant_type":    {"refresh_token"},
 				"refresh_token": {tok.RefreshToken},
 			}
-			resp, err := http.PostForm(tokenURL, form)
+			resp, err := http.PostForm(stravaTokenURL, form)
 			if err != nil {
 				log.Fatalf("refresh token failed: %v", err)
 			}
@@ -154,9 +155,9 @@ func ensureTokens(clientID, clientSecret string) string {
 	// Build the authorize URL
 	authURL := fmt.Sprintf(
 		"%s?client_id=%s&response_type=code&redirect_uri=%s&scope=%s&approval_prompt=auto",
-		authBase,
+		stravaAuthBase,
 		url.QueryEscape(clientID),
-		url.QueryEscape(redirect),
+		url.QueryEscape(stravaRedirect),
 		url.QueryEscape("read,activity:read_all"),
 	)
 	fmt.Println("Open in browser:", authURL)
@@ -177,7 +178,7 @@ func ensureTokens(clientID, clientSecret string) string {
 		"code":          {res.code},
 		"grant_type":    {"authorization_code"},
 	}
-	resp, err := http.PostForm(tokenURL, form)
+	resp, err := http.PostForm(stravaTokenURL, form)
 	if err != nil {
 		log.Fatalf("token exchange failed: %v", err)
 	}
@@ -252,8 +253,8 @@ type Activity struct {
 	SplitsMetric []Split `json:"splits_metric"` // metric splits, may be empty
 }
 
-func apiGETCached(token, path string, params map[string]string, out any, ttl time.Duration) error {
-	u := apiBase + path
+func stravaApiGETCached(token, path string, params map[string]string, out any, ttl time.Duration) error {
+	u := stravaApiBase + path
 	req, _ := http.NewRequest("GET", u, nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	if params != nil {
@@ -327,7 +328,7 @@ type Streams struct {
 
 func getLatestRun(token string) (*Activity, error) {
 	var activities []Activity
-	if err := apiGETCached(token, "/athlete/activities", map[string]string{"per_page": "10", "include_all_efforts": "true"}, &activities, 24*time.Hour); err != nil {
+	if err := stravaApiGETCached(token, "/athlete/activities", map[string]string{"per_page": "10", "include_all_efforts": "true"}, &activities, 24*time.Hour); err != nil {
 		return nil, err
 	}
 	for _, a := range activities {
@@ -340,13 +341,13 @@ func getLatestRun(token string) (*Activity, error) {
 
 func getActivity(token string, id int64) (*Activity, error) {
 	var activity Activity
-	err := apiGETCached(token, fmt.Sprintf("/activities/%d", id), map[string]string{"include_all_efforts": "true"}, &activity, 24*time.Hour)
+	err := stravaApiGETCached(token, fmt.Sprintf("/activities/%d", id), map[string]string{"include_all_efforts": "true"}, &activity, 24*time.Hour)
 	return &activity, err
 }
 
 func getLaps(token string, id int64) ([]Lap, error) {
 	var laps []Lap
-	err := apiGETCached(token, fmt.Sprintf("/activities/%d/laps", id), nil, &laps, 24*time.Hour)
+	err := stravaApiGETCached(token, fmt.Sprintf("/activities/%d/laps", id), nil, &laps, 24*time.Hour)
 	if err != nil {
 		return nil, err
 	}
@@ -355,7 +356,7 @@ func getLaps(token string, id int64) ([]Lap, error) {
 
 func getStreams(token string, id int64) (*Streams, error) {
 	var raw map[string]Stream
-	err := apiGETCached(token, fmt.Sprintf("/activities/%d/streams", id),
+	err := stravaApiGETCached(token, fmt.Sprintf("/activities/%d/streams", id),
 		map[string]string{"keys": "time,heartrate,velocity_smooth,distance,altitude", "key_by_type": "true"}, &raw, 24*time.Hour)
 	if err != nil {
 		return nil, err
@@ -581,7 +582,99 @@ func printLapsWithElevation(laps []Lap, streams *Streams) {
 	}
 }
 
+func runCLI(args []string) error {
+	if len(args) > 0 {
+		switch args[0] {
+		case "help", "--help", "-h":
+			fmt.Println("Usage: coachgpt [options]")
+			fmt.Println("Options:")
+			fmt.Println("  --help, -h          Show this help message")
+			fmt.Println("  STRAVA_CLIENT_ID    Your Strava client ID (required)")
+			fmt.Println("  STRAVA_CLIENT_SECRET Your Strava client secret (required)")
+			fmt.Println("  STRAVA_HRMAX        Your maximum heart rate (required, e.g. 185)")
+			fmt.Println("  STRAVA_ACTIVITY_ID  Specific activity ID to fetch (optional)")
+			fmt.Println("  STRAVA_NOCACHE      Disable caching (optional)")
+		case "version", "--version", "-v":
+			fmt.Println("CoachGPT v0.1.0")
+		case "strength", "--strength", "-s":
+			runStrengthIntegration()
+		default:
+			return fmt.Errorf("unknown command: %s", args[0])
+		}
+	} else {
+		runStravaIntegration()
+	}
+
+	return nil
+}
+
 func main() {
+	if err := runCLI(os.Args[1:]); err != nil {
+		log.Fatalf("Error: %v", err)
+	}
+}
+
+func runStrengthIntegration() {
+	apiKey := mustEnv("HEVY_API_KEY")
+	if apiKey == "" {
+		log.Fatal("Please set HEVY_API_KEY environment variable")
+	}
+
+	cache, _ := hevy.NewFileCache("")
+	client, err := hevy.New(apiKey, hevy.WithCache(cache, 24*time.Hour))
+	if err != nil {
+		log.Fatalf("Failed to create Hevy client: %v", err)
+	}
+
+	ctx := context.Background()
+
+	w, err := client.GetLatestWorkout(ctx)
+	if err != nil {
+		log.Fatalf("Failed to get latest Hevy workout: %v", err)
+	}
+
+	fmt.Println("--- Paste below ---")
+	fmt.Println("## Strength Log")
+	fmt.Println("Title: " + w.Title)
+	startTime, _ := time.Parse(time.RFC3339, w.StartTime)
+	endTime, _ := time.Parse(time.RFC3339, w.EndTime)
+	duration := endTime.Sub(startTime)
+	fmt.Printf("Duration: %s\n", secToHHMM(int64(duration.Seconds())))
+	totalVol := 0.0
+	totalReps := 0
+
+	fmt.Println("Exercises:")
+	for _, ex := range w.Exercises {
+		exVol := 0.0
+		exReps := 0
+		fmt.Printf("- %s\n", ex.Title)
+		for _, s := range ex.Sets {
+			switch {
+			case s.Reps != nil && s.WeightKG != nil:
+				exReps += *s.Reps
+				totalReps += *s.Reps
+				vol := float64(*s.Reps) * *s.WeightKG
+				exVol += vol
+				totalVol += vol
+				fmt.Printf("  • Set %d: %d reps @ %.1f kg\n", s.Index+1, *s.Reps, *s.WeightKG)
+			case s.DurationSeconds != nil:
+				fmt.Printf("  • Set %d: %ds (time)\n", s.Index+1, *s.DurationSeconds)
+			default:
+				fmt.Printf("  • Set %d: (type=%s)\n", s.Index+1, s.Type)
+			}
+		}
+	}
+
+	fmt.Printf("Total Volume: %.1f kg\n", totalVol)
+	fmt.Printf("Total Reps: %d\n", totalReps)
+
+	fmt.Println("Notes: []")
+	fmt.Println("RPE: 0-10 (0=rest, 10=max effort)")
+	fmt.Println("Fueling: [pre + during]")
+	fmt.Println("--- End paste ---")
+}
+
+func runStravaIntegration() {
 	clientID := mustEnv("STRAVA_CLIENT_ID")
 	clientSecret := mustEnv("STRAVA_CLIENT_SECRET")
 	if clientID == "" || clientSecret == "" {

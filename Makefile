@@ -21,7 +21,7 @@ test-unit:
 	@echo "🔬 Running unit tests..."
 	go test -v
 
-# Run integration tests  
+# Run integration tests
 test-integration:
 	@echo "🧪 Running integration tests..."
 	./test.sh
@@ -64,6 +64,6 @@ watch:
 	@echo "👀 Starting watch mode..."
 	@if ! command -v air > /dev/null; then \
 		echo "Installing air for watch mode..."; \
-		go install github.com/cosmtrek/air@latest; \
+		go install github.com/air-verse/air@latest; \
 	fi
 	air -- test
