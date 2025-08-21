@@ -1,4 +1,4 @@
-package strava
+package providers
 
 import (
 	"context"
@@ -7,72 +7,71 @@ import (
 	"strconv"
 	"time"
 
-	"briangreenhill/coachgpt/workout"
+	"briangreenhill/coachgpt/pkg/strava"
 )
 
-// Client implements the workout.Provider interface for Strava
-// This embeds the API client and adds the Provider interface methods
-type Provider struct {
-	*Client
-	hrmax int
+// StravaProvider implements the Provider interface for Strava
+type StravaProvider struct {
+	client *strava.Client
+	hrmax  int
 }
 
-// NewProvider creates a new Strava provider instance
-func NewProvider(client *Client, hrmax int) *Provider {
-	return &Provider{
-		Client: client,
+// NewStravaProvider creates a new Strava provider instance
+func NewStravaProvider(client *strava.Client, hrmax int) *StravaProvider {
+	return &StravaProvider{
+		client: client,
 		hrmax:  hrmax,
 	}
 }
 
 // Name returns the provider name
-func (p *Provider) Name() string {
+func (p *StravaProvider) Name() string {
 	return "strava"
 }
 
 // GetLatest retrieves and displays the most recent workout
-func (p *Provider) GetLatest(ctx context.Context) (string, error) {
+func (p *StravaProvider) GetLatest(ctx context.Context) (string, error) {
 	return p.Get(ctx, "")
 }
 
 // Get retrieves and displays a specific workout by ID (empty string for latest)
-func (p *Provider) Get(ctx context.Context, activityID string) (string, error) {
+func (p *StravaProvider) Get(ctx context.Context, activityID string) (string, error) {
 	// Get OAuth token
-	token, err := p.EnsureTokens()
+	token, err := p.client.EnsureTokens()
 	if err != nil {
 		return "", fmt.Errorf("failed to get OAuth token: %v", err)
 	}
 
 	// Get the activity
-	var act *Activity
+	var act *strava.Activity
 	if activityID != "" {
 		id, err := strconv.ParseInt(activityID, 10, 64)
 		if err != nil {
 			return "", fmt.Errorf("invalid activity ID: %v", err)
 		}
-		act, err = p.GetActivity(token, id)
+		act, err = p.client.GetActivity(token, id)
 		if err != nil {
 			return "", fmt.Errorf("failed to get activity: %v", err)
 		}
 	} else {
-		latest, err := p.GetLatestRun(token)
+		latest, err := p.client.GetLatestRun(token)
 		if err != nil {
 			return "", fmt.Errorf("failed to get latest run: %v", err)
 		}
-		act, err = p.GetActivity(token, latest.ID)
+		act, err = p.client.GetActivity(token, latest.ID)
 		if err != nil {
 			return "", fmt.Errorf("failed to get activity: %v", err)
 		}
 	}
 
 	// Get additional data
-	streams, _ := p.GetStreams(token, act.ID)
-	laps, _ := p.GetLaps(token, act.ID)
+	streams, _ := p.client.GetStreams(token, act.ID)
+	laps, _ := p.client.GetLaps(token, act.ID)
 
 	// Calculate heart rate zones
 	var zones [5]int
 	if streams != nil && len(streams.Heartrate.Data) > 0 {
-		zones = ComputeZones(streams.Heartrate.Data, p.hrmax)
+		zones = strava.ComputeZones(streams.Heartrate.Data, p.hrmax)
 	}
 
 	// Format the output
@@ -80,7 +79,7 @@ func (p *Provider) Get(ctx context.Context, activityID string) (string, error) {
 }
 
 // formatOutput generates the markdown output for a Strava activity
-func (p *Provider) formatOutput(act *Activity, streams *Streams, laps []Lap, zones [5]int) string {
+func (p *StravaProvider) formatOutput(act *strava.Activity, streams *strava.Streams, laps []strava.Lap, zones [5]int) string {
 	var output string
 
 	avgHR := "-"
@@ -102,9 +101,9 @@ func (p *Provider) formatOutput(act *Activity, streams *Streams, laps []Lap, zon
 		when = time.Now().Format(time.RFC3339)
 	}
 	output += fmt.Sprintf("- **When:** %s\n", when)
-	output += fmt.Sprintf("- **Duration:** %s\n", SecToHHMM(act.MovingTime))
+	output += fmt.Sprintf("- **Duration:** %s\n", strava.SecToHHMM(act.MovingTime))
 	output += fmt.Sprintf("- **Distance:** %.1f km (elev %d m)\n", act.Distance/1000.0, int(math.Round(act.TotalElevationGain)))
-	output += fmt.Sprintf("- **Avg Pace:** %s / km\n", PaceFromMoving(act.Distance, act.MovingTime))
+	output += fmt.Sprintf("- **Avg Pace:** %s / km\n", strava.PaceFromMoving(act.Distance, act.MovingTime))
 	output += fmt.Sprintf("- **Avg HR:** %s bpm\n", avgHR)
 
 	if streams != nil && len(streams.Heartrate.Data) > 0 {
@@ -123,10 +122,10 @@ func (p *Provider) formatOutput(act *Activity, streams *Streams, laps []Lap, zon
 	}
 
 	output += "- **Splits:**\n"
-	output += FormatSplitsWithHR(act, streams)
+	output += strava.FormatSplitsWithHR(act, streams)
 
 	output += "- **Laps:**\n"
-	output += FormatLapsWithElevation(laps, streams)
+	output += strava.FormatLapsWithElevation(laps, streams)
 
 	output += "- **RPE:** 0-10 (0=rest, 10=max effort)\n"
 	output += "- **Fueling** [pre + during]\n"
@@ -136,6 +135,3 @@ func (p *Provider) formatOutput(act *Activity, streams *Streams, laps []Lap, zon
 
 	return output
 }
-
-// Ensure Provider implements the workout.Provider interface
-var _ workout.Provider = (*Provider)(nil)

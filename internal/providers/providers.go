@@ -1,5 +1,5 @@
-// Package workout defines the common interface for fitness data providers
-package workout
+// Package providers contains workout data provider implementations
+package providers
 
 import "context"
 

@@ -1,26 +1,43 @@
 package main
 
 import (
-	"briangreenhill/coachgpt/hevy"
-	"briangreenhill/coachgpt/strava"
-	"briangreenhill/coachgpt/workout"
 	"context"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
-	"strconv"
 
-	"github.com/gregjones/httpcache"
+	"briangreenhill/coachgpt/internal/config"
+	"briangreenhill/coachgpt/internal/providers"
 )
 
 func main() {
-	if err := runCLI(os.Args[1:]); err != nil {
+	if err := run(os.Args[1:]); err != nil {
 		log.Fatalf("Error: %v", err)
 	}
 }
 
-func runCLI(args []string) error {
+func run(args []string) error {
+	// Load configuration
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("configuration error: %v", err)
+	}
+
+	if err := cfg.Validate(); err != nil {
+		return err
+	}
+
+	// Parse command line arguments
+	providerName, workoutID := parseArgs(args)
+
+	// Setup providers
+	registry := providers.Setup(cfg)
+
+	// Execute the request
+	return runWithProvider(registry, cfg, providerName, workoutID)
+}
+
+func parseArgs(args []string) (providerName, workoutID string) {
 	if len(args) > 0 {
 		switch args[0] {
 		case "help", "--help", "-h":
@@ -33,62 +50,28 @@ func runCLI(args []string) error {
 			fmt.Println("  STRAVA_HRMAX        Your maximum heart rate (required, e.g. 185)")
 			fmt.Println("  STRAVA_ACTIVITY_ID  Specific activity ID to fetch (optional)")
 			fmt.Println("  HEVY_API_KEY        Your Hevy API key (required for strength)")
+			os.Exit(0)
 		case "version", "--version", "-v":
 			fmt.Println("CoachGPT v0.1.0")
+			os.Exit(0)
 		case "strength", "--strength", "-s":
-			return runWithProvider("hevy", "")
+			return "hevy", ""
 		default:
-			return fmt.Errorf("unknown command: %s", args[0])
+			fmt.Fprintf(os.Stderr, "Unknown command: %s\n", args[0])
+			os.Exit(1)
 		}
-	} else {
-		activityID := os.Getenv("STRAVA_ACTIVITY_ID")
-		return runWithProvider("strava", activityID)
 	}
 
-	return nil
+	// Default to Strava with optional activity ID
+	return "strava", ""
 }
 
-// setupWorkoutRegistry creates and configures all available workout providers
-func setupWorkoutRegistry() *workout.Registry {
-	registry := workout.NewRegistry()
-
-	// Create HTTP client with caching transport
-	transport := httpcache.NewMemoryCacheTransport()
-	httpClient := &http.Client{Transport: transport}
-
-	// Register Strava provider
-	if clientID := os.Getenv("STRAVA_CLIENT_ID"); clientID != "" {
-		if clientSecret := os.Getenv("STRAVA_CLIENT_SECRET"); clientSecret != "" {
-			if hrmaxStr := os.Getenv("STRAVA_HRMAX"); hrmaxStr != "" {
-				if hrmax, err := strconv.Atoi(hrmaxStr); err == nil && hrmax >= 120 {
-					stravaClient := strava.NewClientWithHTTP(clientID, clientSecret, httpClient)
-					stravaProvider := strava.NewProvider(stravaClient, hrmax)
-					registry.Register(stravaProvider)
-				}
-			}
-		}
-	}
-
-	// Register Hevy provider
-	if apiKey := os.Getenv("HEVY_API_KEY"); apiKey != "" {
-		if client, err := hevy.New(apiKey, hevy.WithHTTPClient(httpClient)); err == nil {
-			hevyProvider := hevy.NewProvider(client)
-			registry.Register(hevyProvider)
-		}
-	}
-
-	return registry
-}
-
-// runWithProvider executes the specified provider to fetch and display workout data
-func runWithProvider(providerName, workoutID string) error {
-	registry := setupWorkoutRegistry()
-
+func runWithProvider(registry *providers.Registry, cfg *config.Config, providerName, workoutID string) error {
 	provider, exists := registry.Get(providerName)
 	if !exists {
 		availableProviders := registry.List()
 		if len(availableProviders) == 0 {
-			return fmt.Errorf("no providers are configured. Please set the required environment variables")
+			return fmt.Errorf("no providers are configured")
 		}
 		return fmt.Errorf("provider '%s' not found. Available providers: %v", providerName, availableProviders)
 	}
@@ -96,6 +79,11 @@ func runWithProvider(providerName, workoutID string) error {
 	ctx := context.Background()
 	var output string
 	var err error
+
+	// Use specific activity ID for Strava if provided
+	if providerName == "strava" && workoutID == "" && cfg.Strava.ActivityID != "" {
+		workoutID = cfg.Strava.ActivityID
+	}
 
 	if workoutID != "" {
 		output, err = provider.Get(ctx, workoutID)

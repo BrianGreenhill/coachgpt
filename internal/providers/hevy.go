@@ -1,32 +1,32 @@
-package hevy
+package providers
 
 import (
 	"context"
 	"fmt"
 	"time"
 
-	"briangreenhill/coachgpt/workout"
+	"briangreenhill/coachgpt/pkg/hevy"
 )
 
-// Provider implements the workout.Provider interface for Hevy
-type Provider struct {
-	client *Client
+// HevyProvider implements the Provider interface for Hevy
+type HevyProvider struct {
+	client *hevy.Client
 }
 
-// NewProvider creates a new Hevy provider instance
-func NewProvider(client *Client) *Provider {
-	return &Provider{
+// NewHevyProvider creates a new Hevy provider instance
+func NewHevyProvider(client *hevy.Client) *HevyProvider {
+	return &HevyProvider{
 		client: client,
 	}
 }
 
 // Name returns the provider name
-func (p *Provider) Name() string {
+func (p *HevyProvider) Name() string {
 	return "hevy"
 }
 
 // GetLatest retrieves and displays the most recent workout
-func (p *Provider) GetLatest(ctx context.Context) (string, error) {
+func (p *HevyProvider) GetLatest(ctx context.Context) (string, error) {
 	w, err := p.client.GetLatestWorkout(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to get latest Hevy workout: %v", err)
@@ -36,14 +36,14 @@ func (p *Provider) GetLatest(ctx context.Context) (string, error) {
 }
 
 // Get retrieves and displays a specific workout by ID
-func (p *Provider) Get(ctx context.Context, workoutID string) (string, error) {
+func (p *HevyProvider) Get(ctx context.Context, workoutID string) (string, error) {
 	// Note: Hevy API doesn't support getting specific workout by ID in current implementation
 	// This could be extended if the API supports it
 	return "", fmt.Errorf("getting specific workout by ID not yet supported for Hevy")
 }
 
 // formatWorkout generates the markdown output for a Hevy workout
-func (p *Provider) formatWorkout(w *WorkoutJSON) string {
+func (p *HevyProvider) formatWorkout(w *hevy.WorkoutJSON) string {
 	var output string
 
 	output += "--- Paste below ---\n"
@@ -101,6 +101,3 @@ func formatDuration(d time.Duration) string {
 	}
 	return fmt.Sprintf("%d:%02d", 0, minutes)
 }
-
-// Ensure Provider implements the workout.Provider interface
-var _ workout.Provider = (*Provider)(nil)
