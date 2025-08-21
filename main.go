@@ -5,60 +5,14 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"runtime/debug"
 
 	"github.com/BrianGreenhill/coachgpt/internal/config"
 	"github.com/BrianGreenhill/coachgpt/internal/providers"
 )
 
-// Build-time variables
-var (
-	version = "dev (installed via go install)"
-	commit  = "unknown"
-	date    = "unknown"
-)
-
-// getVersionInfo returns version information, attempting to get better info from build data
-func getVersionInfo() (string, string, string) {
-	v, c, d := version, commit, date
-
-	// Try to get version from build info (for go install)
-	if info, ok := debug.ReadBuildInfo(); ok {
-		// Always try to get the module version if available
-		if info.Main.Version != "" && info.Main.Version != "(devel)" {
-			v = info.Main.Version
-		}
-
-		// Look for VCS info
-		hasVcsInfo := false
-		for _, setting := range info.Settings {
-			switch setting.Key {
-			case "vcs.revision":
-				hasVcsInfo = true
-				if len(setting.Value) >= 7 {
-					c = setting.Value[:7] // Short commit hash
-				} else {
-					c = setting.Value
-				}
-			case "vcs.time":
-				d = setting.Value
-			}
-		}
-
-		// If we have a proper version but no VCS info, indicate it's from a release
-		if v != "dev (installed via go install)" && !hasVcsInfo {
-			c = "release"
-			d = "release build"
-		}
-	}
-
-	// If we still have build-time version info, use it (overrides build info)
-	if version != "dev (installed via go install)" {
-		return version, commit, date
-	}
-
-	return v, c, d
-}
+// Version information - update this when making releases
+// Remember to update this before tagging a new release!
+var version = "v1.1.2"
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
@@ -124,10 +78,7 @@ func parseArgs(args []string) (providerName, workoutID string) {
 			fmt.Println("  coachgpt -s         # Get latest Hevy workout")
 			os.Exit(0)
 		case "version", "--version", "-v":
-			v, c, d := getVersionInfo()
-			fmt.Printf("CoachGPT %s\n", v)
-			fmt.Printf("Commit: %s\n", c)
-			fmt.Printf("Built: %s\n", d)
+			fmt.Printf("CoachGPT %s\n", version)
 			os.Exit(0)
 		case "config", "setup":
 			// This is handled in run() function before we get here
