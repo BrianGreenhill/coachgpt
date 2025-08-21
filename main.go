@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime/debug"
 
 	"github.com/BrianGreenhill/coachgpt/internal/config"
 	"github.com/BrianGreenhill/coachgpt/internal/providers"
@@ -12,10 +13,43 @@ import (
 
 // Build-time variables
 var (
-	version = "dev"
+	version = "dev (installed via go install)"
 	commit  = "unknown"
 	date    = "unknown"
 )
+
+// getVersionInfo returns version information, attempting to get better info from build data
+func getVersionInfo() (string, string, string) {
+	v, c, d := version, commit, date
+	
+	// If we have build-time version info, use it
+	if version != "dev (installed via go install)" {
+		return v, c, d
+	}
+	
+	// Try to get version from build info (for go install)
+	if info, ok := debug.ReadBuildInfo(); ok {
+		if info.Main.Version != "" && info.Main.Version != "(devel)" {
+			v = info.Main.Version
+		}
+		
+		// Look for VCS info
+		for _, setting := range info.Settings {
+			switch setting.Key {
+			case "vcs.revision":
+				if len(setting.Value) >= 7 {
+					c = setting.Value[:7] // Short commit hash
+				} else {
+					c = setting.Value
+				}
+			case "vcs.time":
+				d = setting.Value
+			}
+		}
+	}
+	
+	return v, c, d
+}
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
@@ -81,9 +115,10 @@ func parseArgs(args []string) (providerName, workoutID string) {
 			fmt.Println("  coachgpt -s         # Get latest Hevy workout")
 			os.Exit(0)
 		case "version", "--version", "-v":
-			fmt.Printf("CoachGPT %s\n", version)
-			fmt.Printf("Commit: %s\n", commit)
-			fmt.Printf("Built: %s\n", date)
+			v, c, d := getVersionInfo()
+			fmt.Printf("CoachGPT %s\n", v)
+			fmt.Printf("Commit: %s\n", c)
+			fmt.Printf("Built: %s\n", d)
 			os.Exit(0)
 		case "config", "setup":
 			// This is handled in run() function before we get here
