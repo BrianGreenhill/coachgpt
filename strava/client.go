@@ -115,7 +115,9 @@ func (c *Client) EnsureTokens() (string, error) {
 			if err != nil {
 				return "", fmt.Errorf("refresh token failed: %v", err)
 			}
-			defer resp.Body.Close()
+			defer func() {
+				_ = resp.Body.Close()
+			}()
 			if resp.StatusCode != http.StatusOK {
 				return "", fmt.Errorf("refresh token failed: %s", resp.Status)
 			}
@@ -159,7 +161,7 @@ func (c *Client) performOAuth() (string, error) {
 			resCh <- result{"", fmt.Errorf("no code")}
 			return
 		}
-		fmt.Fprintln(w, "Authorized. You can close this window.")
+		_, _ = fmt.Fprintln(w, "Authorized. You can close this window.")
 		// return code to main goroutine then shut server down
 		resCh <- result{code: code}
 		go func() { _ = srv.Shutdown(context.Background()) }()
@@ -204,7 +206,9 @@ func (c *Client) performOAuth() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("token exchange failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("token exchange failed: %s", resp.Status)
 	}

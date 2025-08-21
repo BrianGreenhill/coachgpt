@@ -70,7 +70,10 @@ type Streams struct {
 // apiGETCached performs a GET request to the Strava API with automatic caching via httpcache
 func (c *Client) apiGETCached(token, path string, params map[string]string, out any, ttl time.Duration) error {
 	u := APIBase + path
-	req, _ := http.NewRequest("GET", u, nil)
+	req, err := http.NewRequest("GET", u, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	if params != nil {
 		q := req.URL.Query()
@@ -90,10 +93,15 @@ func (c *Client) apiGETCached(token, path string, params map[string]string, out 
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("GET %s -> %s: failed to read error response: %w", path, resp.Status, err)
+		}
 		return fmt.Errorf("GET %s -> %s: %s", path, resp.Status, string(body))
 	}
 

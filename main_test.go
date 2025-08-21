@@ -113,6 +113,10 @@ func TestComputeSplitHR(t *testing.T) {
 func TestHTTPCacheOperations(t *testing.T) {
 	// Create HTTP client with memory cache transport
 	transport := httpcache.NewMemoryCacheTransport()
+	if transport == nil {
+		t.Fatal("Transport should not be nil")
+	}
+
 	transport.MarkCachedResponses = true // Add X-From-Cache header for testing
 	client := &http.Client{Transport: transport}
 
@@ -120,12 +124,9 @@ func TestHTTPCacheOperations(t *testing.T) {
 	// we can't easily test the internal cache operations without making
 	// actual HTTP requests. This test verifies the transport is configured correctly.
 
-	if transport == nil {
-		t.Fatal("Transport should not be nil")
-	}
-
-	if client == nil {
-		t.Fatal("HTTP client should not be nil")
+	// Verify transport is properly configured
+	if client.Transport != transport {
+		t.Fatal("Transport not properly assigned")
 	}
 
 	// Verify the transport is properly configured
@@ -155,6 +156,7 @@ func TestStravaClientCreation(t *testing.T) {
 	clientWithHTTP := strava.NewClientWithHTTP("test_id", "test_secret", httpClient)
 	if clientWithHTTP == nil {
 		t.Error("Client with HTTP client should not be nil")
+		return
 	}
 
 	if clientWithHTTP.HTTPClient != httpClient {

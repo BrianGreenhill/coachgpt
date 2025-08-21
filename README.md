@@ -49,6 +49,36 @@ make test
 # Run unit tests only  
 make test-unit
 
+# Run integration tests
+make test-integration
+```
+
+## Development
+
+### Code Quality
+
+This project includes comprehensive static code analysis and formatting tools:
+
+```bash
+# Run comprehensive checks (recommended before committing)
+make check
+
+# Individual tools
+make fmt        # Format code with go fmt and goimports
+make vet        # Run go vet for suspicious code
+make lint       # Run golangci-lint for static analysis
+make lint-fix   # Auto-fix linting issues where possible
+```
+
+### Pre-commit Hook
+
+Install the pre-commit hook to automatically run quality checks:
+
+```bash
+cp scripts/pre-commit .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+```
+
 # Run with coverage report
 make test-coverage
 

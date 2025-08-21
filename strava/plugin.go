@@ -49,15 +49,18 @@ func (p *Plugin) Get(ctx context.Context, activityID string) (string, error) {
 			return "", fmt.Errorf("invalid activity ID: %v", err)
 		}
 		act, err = p.client.GetActivity(token, id)
+		if err != nil {
+			return "", fmt.Errorf("failed to get activity: %v", err)
+		}
 	} else {
 		latest, err := p.client.GetLatestRun(token)
 		if err != nil {
 			return "", fmt.Errorf("failed to get latest run: %v", err)
 		}
 		act, err = p.client.GetActivity(token, latest.ID)
-	}
-	if err != nil {
-		return "", fmt.Errorf("failed to get activity: %v", err)
+		if err != nil {
+			return "", fmt.Errorf("failed to get activity: %v", err)
+		}
 	}
 
 	// Get additional data

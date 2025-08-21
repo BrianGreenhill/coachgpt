@@ -50,7 +50,10 @@ func New(apiKey string, opts ...Option) (*Client, error) {
 	if apiKey == "" {
 		return nil, errors.New("apiKey required")
 	}
-	u, _ := url.Parse(DefaultBaseURL)
+	u, err := url.Parse(DefaultBaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("invalid base URL: %w", err)
+	}
 	c := &Client{
 		http:    http.DefaultClient,
 		baseURL: u,
@@ -105,7 +108,9 @@ func (c *Client) doJSON(ctx context.Context, p string, q map[string]string, out 
 		return nil, err
 	}
 
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	switch resp.StatusCode {
 	case http.StatusNotModified: // 304 revalidate
@@ -129,7 +134,10 @@ func (c *Client) doJSON(ctx context.Context, p string, q map[string]string, out 
 		etag := resp.Header.Get("ETag")
 		return &etag, nil
 	default:
-		b, _ := io.ReadAll(resp.Body)
+		b, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read error response: %w", err)
+		}
 		return nil, fmt.Errorf("GET %s: %s: %s", p, resp.Status, string(b))
 	}
 }
