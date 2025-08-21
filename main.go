@@ -2,8 +2,8 @@ package main
 
 import (
 	"briangreenhill/coachgpt/hevy"
-	"briangreenhill/coachgpt/plugins"
 	"briangreenhill/coachgpt/strava"
+	"briangreenhill/coachgpt/workout"
 	"context"
 	"fmt"
 	"log"
@@ -36,61 +36,61 @@ func runCLI(args []string) error {
 		case "version", "--version", "-v":
 			fmt.Println("CoachGPT v0.1.0")
 		case "strength", "--strength", "-s":
-			return runWithPlugin("hevy", "")
+			return runWithProvider("hevy", "")
 		default:
 			return fmt.Errorf("unknown command: %s", args[0])
 		}
 	} else {
 		activityID := os.Getenv("STRAVA_ACTIVITY_ID")
-		return runWithPlugin("strava", activityID)
+		return runWithProvider("strava", activityID)
 	}
 
 	return nil
 }
 
-// setupPluginRegistry creates and configures all available plugins
-func setupPluginRegistry() *plugins.Registry {
-	registry := plugins.NewRegistry()
+// setupWorkoutRegistry creates and configures all available workout providers
+func setupWorkoutRegistry() *workout.Registry {
+	registry := workout.NewRegistry()
 
 	// Create HTTP client with caching transport
 	transport := httpcache.NewMemoryCacheTransport()
 	httpClient := &http.Client{Transport: transport}
 
-	// Register Strava plugin
+	// Register Strava provider
 	if clientID := os.Getenv("STRAVA_CLIENT_ID"); clientID != "" {
 		if clientSecret := os.Getenv("STRAVA_CLIENT_SECRET"); clientSecret != "" {
 			if hrmaxStr := os.Getenv("STRAVA_HRMAX"); hrmaxStr != "" {
 				if hrmax, err := strconv.Atoi(hrmaxStr); err == nil && hrmax >= 120 {
 					stravaClient := strava.NewClientWithHTTP(clientID, clientSecret, httpClient)
-					stravaPlugin := strava.NewPlugin(stravaClient, hrmax)
-					registry.Register(stravaPlugin)
+					stravaProvider := strava.NewProvider(stravaClient, hrmax)
+					registry.Register(stravaProvider)
 				}
 			}
 		}
 	}
 
-	// Register Hevy plugin
+	// Register Hevy provider
 	if apiKey := os.Getenv("HEVY_API_KEY"); apiKey != "" {
 		if client, err := hevy.New(apiKey, hevy.WithHTTPClient(httpClient)); err == nil {
-			hevyPlugin := hevy.NewPlugin(client)
-			registry.Register(hevyPlugin)
+			hevyProvider := hevy.NewProvider(client)
+			registry.Register(hevyProvider)
 		}
 	}
 
 	return registry
 }
 
-// runWithPlugin executes the specified plugin to fetch and display workout data
-func runWithPlugin(pluginName, workoutID string) error {
-	registry := setupPluginRegistry()
+// runWithProvider executes the specified provider to fetch and display workout data
+func runWithProvider(providerName, workoutID string) error {
+	registry := setupWorkoutRegistry()
 
-	plugin, exists := registry.GetPlugin(pluginName)
+	provider, exists := registry.Get(providerName)
 	if !exists {
-		availablePlugins := registry.List()
-		if len(availablePlugins) == 0 {
-			return fmt.Errorf("no plugins are configured. Please set the required environment variables")
+		availableProviders := registry.List()
+		if len(availableProviders) == 0 {
+			return fmt.Errorf("no providers are configured. Please set the required environment variables")
 		}
-		return fmt.Errorf("plugin '%s' not found. Available plugins: %v", pluginName, availablePlugins)
+		return fmt.Errorf("provider '%s' not found. Available providers: %v", providerName, availableProviders)
 	}
 
 	ctx := context.Background()
@@ -98,13 +98,13 @@ func runWithPlugin(pluginName, workoutID string) error {
 	var err error
 
 	if workoutID != "" {
-		output, err = plugin.Get(ctx, workoutID)
+		output, err = provider.Get(ctx, workoutID)
 	} else {
-		output, err = plugin.GetLatest(ctx)
+		output, err = provider.GetLatest(ctx)
 	}
 
 	if err != nil {
-		return fmt.Errorf("failed to get workout from %s: %v", pluginName, err)
+		return fmt.Errorf("failed to get workout from %s: %v", providerName, err)
 	}
 
 	fmt.Print(output)

@@ -1,42 +1,44 @@
 package strava
 
 import (
-	"briangreenhill/coachgpt/plugins"
 	"context"
 	"fmt"
 	"math"
 	"strconv"
 	"time"
+
+	"briangreenhill/coachgpt/workout"
 )
 
-// Plugin implements the plugins.Plugin interface for Strava
-type Plugin struct {
-	client *Client
-	hrmax  int
+// Client implements the workout.Provider interface for Strava
+// This embeds the API client and adds the Provider interface methods
+type Provider struct {
+	*Client
+	hrmax int
 }
 
-// NewPlugin creates a new Strava plugin instance
-func NewPlugin(client *Client, hrmax int) *Plugin {
-	return &Plugin{
-		client: client,
+// NewProvider creates a new Strava provider instance
+func NewProvider(client *Client, hrmax int) *Provider {
+	return &Provider{
+		Client: client,
 		hrmax:  hrmax,
 	}
 }
 
-// Name returns the plugin name
-func (p *Plugin) Name() string {
+// Name returns the provider name
+func (p *Provider) Name() string {
 	return "strava"
 }
 
 // GetLatest retrieves and displays the most recent workout
-func (p *Plugin) GetLatest(ctx context.Context) (string, error) {
+func (p *Provider) GetLatest(ctx context.Context) (string, error) {
 	return p.Get(ctx, "")
 }
 
 // Get retrieves and displays a specific workout by ID (empty string for latest)
-func (p *Plugin) Get(ctx context.Context, activityID string) (string, error) {
+func (p *Provider) Get(ctx context.Context, activityID string) (string, error) {
 	// Get OAuth token
-	token, err := p.client.EnsureTokens()
+	token, err := p.EnsureTokens()
 	if err != nil {
 		return "", fmt.Errorf("failed to get OAuth token: %v", err)
 	}
@@ -48,24 +50,24 @@ func (p *Plugin) Get(ctx context.Context, activityID string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("invalid activity ID: %v", err)
 		}
-		act, err = p.client.GetActivity(token, id)
+		act, err = p.GetActivity(token, id)
 		if err != nil {
 			return "", fmt.Errorf("failed to get activity: %v", err)
 		}
 	} else {
-		latest, err := p.client.GetLatestRun(token)
+		latest, err := p.GetLatestRun(token)
 		if err != nil {
 			return "", fmt.Errorf("failed to get latest run: %v", err)
 		}
-		act, err = p.client.GetActivity(token, latest.ID)
+		act, err = p.GetActivity(token, latest.ID)
 		if err != nil {
 			return "", fmt.Errorf("failed to get activity: %v", err)
 		}
 	}
 
 	// Get additional data
-	streams, _ := p.client.GetStreams(token, act.ID)
-	laps, _ := p.client.GetLaps(token, act.ID)
+	streams, _ := p.GetStreams(token, act.ID)
+	laps, _ := p.GetLaps(token, act.ID)
 
 	// Calculate heart rate zones
 	var zones [5]int
@@ -78,7 +80,7 @@ func (p *Plugin) Get(ctx context.Context, activityID string) (string, error) {
 }
 
 // formatOutput generates the markdown output for a Strava activity
-func (p *Plugin) formatOutput(act *Activity, streams *Streams, laps []Lap, zones [5]int) string {
+func (p *Provider) formatOutput(act *Activity, streams *Streams, laps []Lap, zones [5]int) string {
 	var output string
 
 	avgHR := "-"
@@ -135,5 +137,5 @@ func (p *Plugin) formatOutput(act *Activity, streams *Streams, laps []Lap, zones
 	return output
 }
 
-// Ensure Plugin implements the plugins.Plugin interface
-var _ plugins.Plugin = (*Plugin)(nil)
+// Ensure Provider implements the workout.Provider interface
+var _ workout.Provider = (*Provider)(nil)

@@ -1,31 +1,32 @@
 package hevy
 
 import (
-	"briangreenhill/coachgpt/plugins"
 	"context"
 	"fmt"
 	"time"
+
+	"briangreenhill/coachgpt/workout"
 )
 
-// Plugin implements the plugins.Plugin interface for Hevy
-type Plugin struct {
+// Provider implements the workout.Provider interface for Hevy
+type Provider struct {
 	client *Client
 }
 
-// NewPlugin creates a new Hevy plugin instance
-func NewPlugin(client *Client) *Plugin {
-	return &Plugin{
+// NewProvider creates a new Hevy provider instance
+func NewProvider(client *Client) *Provider {
+	return &Provider{
 		client: client,
 	}
 }
 
-// Name returns the plugin name
-func (p *Plugin) Name() string {
+// Name returns the provider name
+func (p *Provider) Name() string {
 	return "hevy"
 }
 
 // GetLatest retrieves and displays the most recent workout
-func (p *Plugin) GetLatest(ctx context.Context) (string, error) {
+func (p *Provider) GetLatest(ctx context.Context) (string, error) {
 	w, err := p.client.GetLatestWorkout(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to get latest Hevy workout: %v", err)
@@ -35,14 +36,14 @@ func (p *Plugin) GetLatest(ctx context.Context) (string, error) {
 }
 
 // Get retrieves and displays a specific workout by ID
-func (p *Plugin) Get(ctx context.Context, workoutID string) (string, error) {
+func (p *Provider) Get(ctx context.Context, workoutID string) (string, error) {
 	// Note: Hevy API doesn't support getting specific workout by ID in current implementation
 	// This could be extended if the API supports it
 	return "", fmt.Errorf("getting specific workout by ID not yet supported for Hevy")
 }
 
 // formatWorkout generates the markdown output for a Hevy workout
-func (p *Plugin) formatWorkout(w *WorkoutJSON) string {
+func (p *Provider) formatWorkout(w *WorkoutJSON) string {
 	var output string
 
 	output += "--- Paste below ---\n"
@@ -101,5 +102,5 @@ func formatDuration(d time.Duration) string {
 	return fmt.Sprintf("%d:%02d", 0, minutes)
 }
 
-// Ensure Plugin implements the plugins.Plugin interface
-var _ plugins.Plugin = (*Plugin)(nil)
+// Ensure Provider implements the workout.Provider interface
+var _ workout.Provider = (*Provider)(nil)

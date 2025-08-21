@@ -5,7 +5,7 @@ CoachGPT is a CLI that pulls runs from Strava and generates a detailed analysis 
 ## Features
 
 - 🏃‍♂️ **Multiple Data Sources**: Fetches workouts from Strava (cardio) and Hevy (strength training)
-- 🔌 **Plugin Architecture**: Extensible plugin system for adding new fitness data sources
+- 🔌 **Provider Architecture**: Clean, extensible provider system for adding new fitness data sources
 - 📊 Analyzes heart rate zones, pace, and elevation data
 - 📈 Provides detailed split and lap breakdowns
 - 💾 Intelligent caching with ETag support for efficient API usage
