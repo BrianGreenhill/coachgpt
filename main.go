@@ -12,7 +12,7 @@ import (
 
 // Version information - update this when making releases
 // Remember to update this before tagging a new release!
-var version = "v1.1.2"
+var version = "v1.2.0"
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
