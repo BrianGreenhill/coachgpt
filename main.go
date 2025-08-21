@@ -24,6 +24,18 @@ func main() {
 }
 
 func run(args []string) error {
+	// Handle config command first (before loading config)
+	if len(args) > 0 && (args[0] == "config" || args[0] == "setup") {
+		// Create a temporary registry with all available providers for setup
+		registry := providers.NewRegistry()
+		
+		// Register all available providers (these will check their own environment)
+		registry.Register(providers.NewStravaProviderForSetup())
+		registry.Register(providers.NewHevyProviderForSetup())
+		
+		return providers.SetupWizard(registry)
+	}
+
 	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
@@ -48,21 +60,34 @@ func parseArgs(args []string) (providerName, workoutID string) {
 	if len(args) > 0 {
 		switch args[0] {
 		case "help", "--help", "-h":
-			fmt.Println("Usage: coachgpt [options]")
-			fmt.Println("Options:")
-			fmt.Println("  --help, -h          Show this help message")
-			fmt.Println("  --strength, -s      Use Hevy for strength training data")
+			fmt.Println("Usage: coachgpt [command] [options]")
+			fmt.Println()
+			fmt.Println("Commands:")
+			fmt.Println("  config, setup       Interactive setup wizard for API credentials")
+			fmt.Println("  strength, -s        Use Hevy for strength training data")
+			fmt.Println("  version, -v         Show version information")
+			fmt.Println("  help, -h            Show this help message")
+			fmt.Println()
+			fmt.Println("Environment Variables:")
 			fmt.Println("  STRAVA_CLIENT_ID    Your Strava client ID (required)")
 			fmt.Println("  STRAVA_CLIENT_SECRET Your Strava client secret (required)")
 			fmt.Println("  STRAVA_HRMAX        Your maximum heart rate (required, e.g. 185)")
 			fmt.Println("  STRAVA_ACTIVITY_ID  Specific activity ID to fetch (optional)")
 			fmt.Println("  HEVY_API_KEY        Your Hevy API key (required for strength)")
+			fmt.Println()
+			fmt.Println("Examples:")
+			fmt.Println("  coachgpt config     # Set up API credentials")
+			fmt.Println("  coachgpt            # Get latest Strava activity")
+			fmt.Println("  coachgpt -s         # Get latest Hevy workout")
 			os.Exit(0)
 		case "version", "--version", "-v":
 			fmt.Printf("CoachGPT %s\n", version)
 			fmt.Printf("Commit: %s\n", commit)
 			fmt.Printf("Built: %s\n", date)
 			os.Exit(0)
+		case "config", "setup":
+			// This is handled in run() function before we get here
+			return "", ""
 		case "strength", "--strength", "-s":
 			return "hevy", ""
 		default:

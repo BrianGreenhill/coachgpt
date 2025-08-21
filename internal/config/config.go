@@ -65,7 +65,20 @@ func (c *Config) HasHevy() bool {
 // Validate ensures the configuration has at least one provider configured
 func (c *Config) Validate() error {
 	if !c.HasStrava() && !c.HasHevy() {
-		return fmt.Errorf("no providers configured - please set environment variables for at least one provider")
+		return fmt.Errorf(`no providers configured
+
+To get started, run the setup wizard:
+  coachgpt config
+
+Or set environment variables manually:
+  
+For Strava:
+  export STRAVA_CLIENT_ID="your_client_id"
+  export STRAVA_CLIENT_SECRET="your_client_secret"  
+  export STRAVA_HRMAX="185"
+
+For Hevy:
+  export HEVY_API_KEY="your_api_key"`)
 	}
 	return nil
 }

@@ -1,17 +1,44 @@
 package providers
 
 import (
+	"bufio"
 	"context"
 	"testing"
 )
 
 // mockProvider is a test implementation of the Provider interface
 type mockProvider struct {
-	name string
+	name        string
+	description string
+	configured  bool
 }
 
 func (m *mockProvider) Name() string {
 	return m.name
+}
+
+func (m *mockProvider) Description() string {
+	if m.description != "" {
+		return m.description
+	}
+	return m.name + " provider"
+}
+
+func (m *mockProvider) IsConfigured() bool {
+	return m.configured
+}
+
+func (m *mockProvider) Setup(reader *bufio.Reader) error {
+	// Mock setup - just mark as configured
+	m.configured = true
+	return nil
+}
+
+func (m *mockProvider) ShowConfig() string {
+	if m.configured {
+		return "✅ " + m.name + ": Configured"
+	}
+	return "❌ " + m.name + ": Not configured"
 }
 
 func (m *mockProvider) GetLatest(ctx context.Context) (string, error) {

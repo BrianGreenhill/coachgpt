@@ -48,7 +48,15 @@ make build-release
 
 ## Setup
 
-### Strava Integration
+### Quick Setup (Recommended)
+```bash
+coachgpt config
+```
+This launches an interactive setup wizard that guides you through configuring your API credentials.
+
+### Manual Setup
+
+#### Strava Integration
 1. Create a Strava application at https://www.strava.com/settings/api
 2. Set your environment variables:
    ```bash
@@ -57,7 +65,7 @@ make build-release
    export STRAVA_HRMAX="185"  # Your maximum heart rate
    ```
 
-### Hevy Integration (Optional)
+#### Hevy Integration (Optional)
 1. Get your Hevy API key from your Hevy account
 2. Set the environment variable:
    ```bash
@@ -72,19 +80,29 @@ export STRAVA_ACTIVITY_ID="1234567890"
 
 ## Usage
 
+### First Time Setup
 ```bash
-# Run with latest Strava activity (default)
-go run .
-
-# Run with strength training from Hevy
-go run . --strength
-
-# Run with specific Strava activity
-STRAVA_ACTIVITY_ID=1234567890 go run .
-
-# Show help
-go run . --help
+coachgpt config  # Interactive setup wizard
 ```
+
+### Fetch Latest Workout
+```bash
+coachgpt         # Latest Strava activity (default)
+coachgpt -s      # Latest Hevy workout
+```
+
+### Get Help
+```bash
+coachgpt help    # Show all available commands
+```
+
+## Commands
+
+- `coachgpt config` - Interactive setup wizard for API credentials
+- `coachgpt` - Fetch latest Strava activity (default)
+- `coachgpt -s` - Fetch latest Hevy workout  
+- `coachgpt help` - Show help information
+- `coachgpt version` - Show version information
 
 ## Testing
 
