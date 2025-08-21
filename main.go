@@ -12,7 +12,7 @@ import (
 
 // Version information - update this when making releases
 // Remember to update this before tagging a new release!
-var version = "v1.2.0"
+var version = "v1.3.0"
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
@@ -65,12 +65,16 @@ func parseArgs(args []string) (providerName, workoutID string) {
 			fmt.Println("  version, -v         Show version information")
 			fmt.Println("  help, -h            Show this help message")
 			fmt.Println()
-			fmt.Println("Environment Variables:")
-			fmt.Println("  STRAVA_CLIENT_ID    Your Strava client ID (required)")
-			fmt.Println("  STRAVA_CLIENT_SECRET Your Strava client secret (required)")
-			fmt.Println("  STRAVA_HRMAX        Your maximum heart rate (required, e.g. 185)")
+			fmt.Println("Configuration:")
+			fmt.Println("  CoachGPT uses a config file at ~/.config/coachgpt/config.json")
+			fmt.Println("  Run 'coachgpt config' to set up your API credentials interactively")
+			fmt.Println()
+			fmt.Println("Environment Variable Overrides:")
+			fmt.Println("  STRAVA_CLIENT_ID    Override Strava client ID")
+			fmt.Println("  STRAVA_CLIENT_SECRET Override Strava client secret")
+			fmt.Println("  STRAVA_HRMAX        Override maximum heart rate (e.g. 185)")
 			fmt.Println("  STRAVA_ACTIVITY_ID  Specific activity ID to fetch (optional)")
-			fmt.Println("  HEVY_API_KEY        Your Hevy API key (required for strength)")
+			fmt.Println("  HEVY_API_KEY        Override Hevy API key")
 			fmt.Println()
 			fmt.Println("Examples:")
 			fmt.Println("  coachgpt config     # Set up API credentials")

@@ -4,6 +4,8 @@ package providers
 import (
 	"bufio"
 	"context"
+
+	"github.com/BrianGreenhill/coachgpt/internal/config"
 )
 
 // Provider defines the interface that all fitness data providers must implement
@@ -19,6 +21,9 @@ type Provider interface {
 
 	// Setup runs the interactive setup for this provider
 	Setup(reader *bufio.Reader) error
+
+	// SetupConfig runs the interactive setup and updates the provided config
+	SetupConfig(reader *bufio.Reader, cfg *config.Config) error
 
 	// ShowConfig displays current configuration status (without revealing secrets)
 	ShowConfig() string

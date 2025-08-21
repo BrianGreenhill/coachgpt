@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/BrianGreenhill/coachgpt/internal/config"
 	"github.com/BrianGreenhill/coachgpt/pkg/strava"
 )
 
@@ -157,6 +158,93 @@ func (p *StravaProvider) Setup(reader *bufio.Reader) error {
 		"STRAVA_CLIENT_SECRET": clientSecret,
 		"STRAVA_HRMAX":         hrMaxStr,
 	}, "Strava")
+}
+
+// SetupConfig handles Strava configuration setup and updates the provided config
+func (p *StravaProvider) SetupConfig(reader *bufio.Reader, cfg *config.Config) error {
+	fmt.Println()
+	fmt.Println("🚴‍♂️ Strava Setup")
+
+	if cfg.HasStrava() {
+		fmt.Println("Strava is already configured.")
+		fmt.Print("Do you want to reconfigure? (y/N): ")
+
+		response, _ := reader.ReadString('\n')
+		response = strings.TrimSpace(strings.ToLower(response))
+		if response != "y" && response != "yes" {
+			fmt.Println("Keeping existing Strava configuration.")
+			return nil
+		}
+		fmt.Println()
+	}
+
+	fmt.Println("To set up Strava, you need to create a Strava API application:")
+	fmt.Println("1. Go to https://www.strava.com/settings/api")
+	fmt.Println("2. Create a new application")
+	fmt.Println("3. Copy your Client ID and Client Secret")
+	fmt.Println()
+
+	// Get Client ID
+	clientIDPrompt := "Enter your Strava Client ID: "
+	if cfg.Strava.ClientID != "" {
+		clientIDPrompt = fmt.Sprintf("Enter your Strava Client ID (current: %s***): ", cfg.Strava.ClientID[:min(6, len(cfg.Strava.ClientID))])
+	}
+	fmt.Print(clientIDPrompt)
+	clientID, _ := reader.ReadString('\n')
+	clientID = strings.TrimSpace(clientID)
+	if clientID == "" && cfg.Strava.ClientID != "" {
+		clientID = cfg.Strava.ClientID
+		fmt.Printf("Using existing Client ID: %s***\n", clientID[:min(6, len(clientID))])
+	} else if clientID == "" {
+		return fmt.Errorf("client ID is required")
+	}
+
+	// Get Client Secret
+	clientSecretPrompt := "Enter your Strava Client Secret: "
+	if cfg.Strava.ClientSecret != "" {
+		clientSecretPrompt = "Enter your Strava Client Secret (current: ***): "
+	}
+	fmt.Print(clientSecretPrompt)
+	clientSecret, _ := reader.ReadString('\n')
+	clientSecret = strings.TrimSpace(clientSecret)
+	if clientSecret == "" && cfg.Strava.ClientSecret != "" {
+		clientSecret = cfg.Strava.ClientSecret
+		fmt.Println("Using existing Client Secret: ***")
+	} else if clientSecret == "" {
+		return fmt.Errorf("client secret is required")
+	}
+
+	// Get HR Max
+	hrmaxPrompt := "Enter your maximum heart rate (120-220): "
+	if cfg.Strava.HRMax > 0 {
+		hrmaxPrompt = fmt.Sprintf("Enter your maximum heart rate (current: %d): ", cfg.Strava.HRMax)
+	}
+	fmt.Print(hrmaxPrompt)
+	hrmaxStr, _ := reader.ReadString('\n')
+	hrmaxStr = strings.TrimSpace(hrmaxStr)
+
+	var hrmax int
+	if hrmaxStr == "" && cfg.Strava.HRMax > 0 {
+		hrmax = cfg.Strava.HRMax
+		fmt.Printf("Using existing HR Max: %d\n", hrmax)
+	} else {
+		var err error
+		hrmax, err = strconv.Atoi(hrmaxStr)
+		if err != nil {
+			return fmt.Errorf("invalid heart rate: %v", err)
+		}
+		if hrmax < 120 || hrmax > 220 {
+			return fmt.Errorf("heart rate must be between 120-220, got %d", hrmax)
+		}
+	}
+
+	// Update config
+	cfg.Strava.ClientID = clientID
+	cfg.Strava.ClientSecret = clientSecret
+	cfg.Strava.HRMax = hrmax
+
+	fmt.Println("✅ Strava configuration complete!")
+	return nil
 }
 
 func min(a, b int) int {

@@ -5,7 +5,32 @@ import (
 	"testing"
 )
 
+// setupTestConfig creates a temporary config directory for testing
+func setupTestConfig(t *testing.T) func() {
+	// Create a temporary directory for config
+	tempDir := t.TempDir()
+
+	// Save original HOME
+	originalHome := os.Getenv("HOME")
+
+	// Set HOME to our temp directory
+	_ = os.Setenv("HOME", tempDir)
+
+	// Return cleanup function
+	return func() {
+		if originalHome == "" {
+			_ = os.Unsetenv("HOME")
+		} else {
+			_ = os.Setenv("HOME", originalHome)
+		}
+	}
+}
+
 func TestLoad(t *testing.T) {
+	// Setup temporary config directory
+	cleanup := setupTestConfig(t)
+	defer cleanup()
+
 	// Save original env vars
 	original := map[string]string{
 		"STRAVA_CLIENT_ID":     os.Getenv("STRAVA_CLIENT_ID"),
@@ -64,6 +89,10 @@ func TestLoad(t *testing.T) {
 }
 
 func TestLoadInvalidHRMax(t *testing.T) {
+	// Setup temporary config directory
+	cleanup := setupTestConfig(t)
+	defer cleanup()
+
 	// Clean up after test
 	defer func() {
 		_ = os.Unsetenv("STRAVA_HRMAX")

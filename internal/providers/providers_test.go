@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"context"
 	"testing"
+
+	"github.com/BrianGreenhill/coachgpt/internal/config"
 )
 
 // mockProvider is a test implementation of the Provider interface
@@ -29,6 +31,12 @@ func (m *mockProvider) IsConfigured() bool {
 }
 
 func (m *mockProvider) Setup(reader *bufio.Reader) error {
+	// Mock setup - just mark as configured
+	m.configured = true
+	return nil
+}
+
+func (m *mockProvider) SetupConfig(reader *bufio.Reader, cfg *config.Config) error {
 	// Mock setup - just mark as configured
 	m.configured = true
 	return nil

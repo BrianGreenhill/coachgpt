@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/BrianGreenhill/coachgpt/internal/config"
 	"github.com/BrianGreenhill/coachgpt/pkg/hevy"
 )
 
@@ -102,6 +103,52 @@ func (p *HevyProvider) Setup(reader *bufio.Reader) error {
 	return writeEnvVars(map[string]string{
 		"HEVY_API_KEY": apiKey,
 	}, "Hevy")
+}
+
+// SetupConfig handles Hevy configuration setup and updates the provided config
+func (p *HevyProvider) SetupConfig(reader *bufio.Reader, cfg *config.Config) error {
+	fmt.Println()
+	fmt.Println("💪 Hevy Setup")
+
+	if cfg.HasHevy() {
+		fmt.Println("Hevy is already configured.")
+		fmt.Print("Do you want to reconfigure? (y/N): ")
+
+		response, _ := reader.ReadString('\n')
+		response = strings.TrimSpace(strings.ToLower(response))
+		if response != "y" && response != "yes" {
+			fmt.Println("Keeping existing Hevy configuration.")
+			return nil
+		}
+		fmt.Println()
+	}
+
+	fmt.Println("To set up Hevy, you need your API key:")
+	fmt.Println("1. Open the Hevy app")
+	fmt.Println("2. Go to Settings > Developer")
+	fmt.Println("3. Copy your API key")
+	fmt.Println()
+
+	// Get API Key
+	apiKeyPrompt := "Enter your Hevy API key: "
+	if cfg.Hevy.APIKey != "" {
+		apiKeyPrompt = fmt.Sprintf("Enter your Hevy API key (current: %s***): ", cfg.Hevy.APIKey[:min(8, len(cfg.Hevy.APIKey))])
+	}
+	fmt.Print(apiKeyPrompt)
+	apiKey, _ := reader.ReadString('\n')
+	apiKey = strings.TrimSpace(apiKey)
+	if apiKey == "" && cfg.Hevy.APIKey != "" {
+		apiKey = cfg.Hevy.APIKey
+		fmt.Printf("Using existing API key: %s***\n", apiKey[:min(8, len(apiKey))])
+	} else if apiKey == "" {
+		return fmt.Errorf("API key is required")
+	}
+
+	// Update config
+	cfg.Hevy.APIKey = apiKey
+
+	fmt.Println("✅ Hevy configuration complete!")
+	return nil
 }
 
 // GetLatest retrieves and displays the most recent workout

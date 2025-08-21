@@ -6,13 +6,21 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/BrianGreenhill/coachgpt/internal/config"
 )
 
-// SetupWizard guides users through setting up their configuration using the provider registry
+// SetupWizard guides users through setting up their configuration and saves to config file
 func SetupWizard(registry *Registry) error {
 	fmt.Println("🏃‍♂️ CoachGPT Configuration Setup")
 	fmt.Println("This wizard will help you configure CoachGPT with your fitness data providers.")
 	fmt.Println()
+
+	// Load existing config
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %v", err)
+	}
 
 	// Show current status
 	showCurrentStatus(registry)
@@ -22,15 +30,20 @@ func SetupWizard(registry *Registry) error {
 	// Choose providers to set up
 	selectedProviders := selectProviders(reader, registry)
 
-	// Setup selected providers
+	// Setup selected providers and update config
 	for _, provider := range selectedProviders {
-		if err := provider.Setup(reader); err != nil {
+		if err := provider.SetupConfig(reader, cfg); err != nil {
 			return fmt.Errorf("%s setup failed: %v", provider.Name(), err)
 		}
 	}
 
+	// Save the updated config
+	if err := cfg.Save(); err != nil {
+		return fmt.Errorf("failed to save config: %v", err)
+	}
+
 	fmt.Println()
-	fmt.Println("✅ Configuration complete!")
+	fmt.Printf("✅ Configuration saved to config file!\n")
 	fmt.Println("You can now run 'coachgpt' to fetch your latest workout data.")
 
 	return nil
