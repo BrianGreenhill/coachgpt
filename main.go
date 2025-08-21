@@ -7,12 +7,13 @@ import (
 	"os"
 
 	"github.com/BrianGreenhill/coachgpt/internal/config"
+	"github.com/BrianGreenhill/coachgpt/internal/prompt"
 	"github.com/BrianGreenhill/coachgpt/internal/providers"
 )
 
 // Version information - update this when making releases
 // Remember to update this before tagging a new release!
-var version = "v1.3.0"
+var version = "v1.4.0"
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
@@ -61,6 +62,7 @@ func parseArgs(args []string) (providerName, workoutID string) {
 			fmt.Println()
 			fmt.Println("Commands:")
 			fmt.Println("  config, setup       Interactive setup wizard for API credentials")
+			fmt.Println("  prompt              Generate AI coaching prompt template")
 			fmt.Println("  strength, -s        Use Hevy for strength training data")
 			fmt.Println("  version, -v         Show version information")
 			fmt.Println("  help, -h            Show this help message")
@@ -75,9 +77,11 @@ func parseArgs(args []string) (providerName, workoutID string) {
 			fmt.Println("  STRAVA_HRMAX        Override maximum heart rate (e.g. 185)")
 			fmt.Println("  STRAVA_ACTIVITY_ID  Specific activity ID to fetch (optional)")
 			fmt.Println("  HEVY_API_KEY        Override Hevy API key")
+			fmt.Println("  COACHING_PROMPT_PATH Path to custom coaching prompt file")
 			fmt.Println()
 			fmt.Println("Examples:")
 			fmt.Println("  coachgpt config     # Set up API credentials")
+			fmt.Println("  coachgpt prompt     # Get AI coaching prompt")
 			fmt.Println("  coachgpt            # Get latest Strava activity")
 			fmt.Println("  coachgpt -s         # Get latest Hevy workout")
 			os.Exit(0)
@@ -87,6 +91,9 @@ func parseArgs(args []string) (providerName, workoutID string) {
 		case "config", "setup":
 			// This is handled in run() function before we get here
 			return "", ""
+		case "prompt":
+			generateCoachingPrompt()
+			os.Exit(0)
 		case "strength", "--strength", "-s":
 			return "hevy", ""
 		default:
@@ -130,4 +137,19 @@ func runWithProvider(registry *providers.Registry, cfg *config.Config, providerN
 
 	fmt.Print(output)
 	return nil
+}
+
+// generateCoachingPrompt outputs a comprehensive AI coaching prompt
+func generateCoachingPrompt() {
+	// Load config specifically for prompt functionality (doesn't require full provider setup)
+	cfg, err := prompt.LoadConfigForPromptOnly()
+	if err != nil {
+		cfg = &config.Config{} // Use empty config as fallback
+	}
+
+	// Generate prompt using the dedicated prompt package
+	generator := prompt.NewGenerator(cfg)
+	promptText := generator.GenerateWithFallback()
+
+	fmt.Print(promptText)
 }
