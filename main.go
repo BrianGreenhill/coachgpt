@@ -21,22 +21,20 @@ var (
 // getVersionInfo returns version information, attempting to get better info from build data
 func getVersionInfo() (string, string, string) {
 	v, c, d := version, commit, date
-	
-	// If we have build-time version info, use it
-	if version != "dev (installed via go install)" {
-		return v, c, d
-	}
-	
+
 	// Try to get version from build info (for go install)
 	if info, ok := debug.ReadBuildInfo(); ok {
+		// Always try to get the module version if available
 		if info.Main.Version != "" && info.Main.Version != "(devel)" {
 			v = info.Main.Version
 		}
-		
+
 		// Look for VCS info
+		hasVcsInfo := false
 		for _, setting := range info.Settings {
 			switch setting.Key {
 			case "vcs.revision":
+				hasVcsInfo = true
 				if len(setting.Value) >= 7 {
 					c = setting.Value[:7] // Short commit hash
 				} else {
@@ -46,8 +44,19 @@ func getVersionInfo() (string, string, string) {
 				d = setting.Value
 			}
 		}
+
+		// If we have a proper version but no VCS info, indicate it's from a release
+		if v != "dev (installed via go install)" && !hasVcsInfo {
+			c = "release"
+			d = "release build"
+		}
 	}
-	
+
+	// If we still have build-time version info, use it (overrides build info)
+	if version != "dev (installed via go install)" {
+		return version, commit, date
+	}
+
 	return v, c, d
 }
 
