@@ -1,4 +1,4 @@
-module briangreenhill/coachgpt
+module github.com/BrianGreenhill/coachgpt
 
 go 1.23.5
 

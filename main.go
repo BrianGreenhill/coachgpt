@@ -6,8 +6,8 @@ import (
 	"log"
 	"os"
 
-	"briangreenhill/coachgpt/internal/config"
-	"briangreenhill/coachgpt/internal/providers"
+	"github.com/BrianGreenhill/coachgpt/internal/config"
+	"github.com/BrianGreenhill/coachgpt/internal/providers"
 )
 
 // Build-time variables

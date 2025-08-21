@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"briangreenhill/coachgpt/pkg/strava"
+	"github.com/BrianGreenhill/coachgpt/pkg/strava"
 )
 
 // StravaProvider implements the Provider interface for Strava

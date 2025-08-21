@@ -3,9 +3,9 @@ package providers
 import (
 	"net/http"
 
-	"briangreenhill/coachgpt/internal/config"
-	"briangreenhill/coachgpt/pkg/hevy"
-	"briangreenhill/coachgpt/pkg/strava"
+	"github.com/BrianGreenhill/coachgpt/internal/config"
+	"github.com/BrianGreenhill/coachgpt/pkg/hevy"
+	"github.com/BrianGreenhill/coachgpt/pkg/strava"
 
 	"github.com/gregjones/httpcache"
 )

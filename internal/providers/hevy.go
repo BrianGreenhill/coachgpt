@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"briangreenhill/coachgpt/pkg/hevy"
+	"github.com/BrianGreenhill/coachgpt/pkg/hevy"
 )
 
 // HevyProvider implements the Provider interface for Hevy
