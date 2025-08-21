@@ -28,11 +28,11 @@ func run(args []string) error {
 	if len(args) > 0 && (args[0] == "config" || args[0] == "setup") {
 		// Create a temporary registry with all available providers for setup
 		registry := providers.NewRegistry()
-		
+
 		// Register all available providers (these will check their own environment)
 		registry.Register(providers.NewStravaProviderForSetup())
 		registry.Register(providers.NewHevyProviderForSetup())
-		
+
 		return providers.SetupWizard(registry)
 	}
 

@@ -50,11 +50,11 @@ func (p *StravaProvider) IsConfigured() bool {
 	clientID := os.Getenv("STRAVA_CLIENT_ID")
 	clientSecret := os.Getenv("STRAVA_CLIENT_SECRET")
 	hrMaxStr := os.Getenv("STRAVA_HRMAX")
-	
+
 	if clientID == "" || clientSecret == "" || hrMaxStr == "" {
 		return false
 	}
-	
+
 	hrMax, err := strconv.Atoi(hrMaxStr)
 	return err == nil && hrMax > 0
 }
@@ -64,11 +64,11 @@ func (p *StravaProvider) ShowConfig() string {
 	if !p.IsConfigured() {
 		return "❌ Strava: Not configured"
 	}
-	
+
 	clientID := os.Getenv("STRAVA_CLIENT_ID")
 	hrMax := os.Getenv("STRAVA_HRMAX")
-	
-	return fmt.Sprintf("✅ Strava: Configured\n   Client ID: %s***\n   Max HR: %s", 
+
+	return fmt.Sprintf("✅ Strava: Configured\n   Client ID: %s***\n   Max HR: %s",
 		clientID[:min(6, len(clientID))], hrMax)
 }
 
@@ -76,12 +76,12 @@ func (p *StravaProvider) ShowConfig() string {
 func (p *StravaProvider) Setup(reader *bufio.Reader) error {
 	fmt.Println()
 	fmt.Println("🚴‍♂️ Strava Setup")
-	
+
 	if p.IsConfigured() {
 		fmt.Println("Strava is already configured:")
 		fmt.Println(p.ShowConfig())
 		fmt.Print("Do you want to reconfigure? (y/N): ")
-		
+
 		response, _ := reader.ReadString('\n')
 		response = strings.TrimSpace(strings.ToLower(response))
 		if response != "y" && response != "yes" {
@@ -90,7 +90,7 @@ func (p *StravaProvider) Setup(reader *bufio.Reader) error {
 		}
 		fmt.Println()
 	}
-	
+
 	fmt.Println("To set up Strava, you need to create a Strava API application:")
 	fmt.Println("1. Go to https://www.strava.com/settings/api")
 	fmt.Println("2. Create a new application")
@@ -138,7 +138,7 @@ func (p *StravaProvider) Setup(reader *bufio.Reader) error {
 	fmt.Print(hrMaxPrompt)
 	hrMaxStr, _ := reader.ReadString('\n')
 	hrMaxStr = strings.TrimSpace(hrMaxStr)
-	
+
 	if hrMaxStr == "" && currentHRMax != "" {
 		hrMaxStr = currentHRMax
 		fmt.Printf("Using existing HR Max: %s\n", hrMaxStr)
@@ -179,7 +179,7 @@ func (p *StravaProvider) Get(ctx context.Context, activityID string) (string, er
 	if p.client == nil {
 		return "", fmt.Errorf("provider not properly initialized - use regular setup, not setup-only instance")
 	}
-	
+
 	// Get OAuth token
 	token, err := p.client.EnsureTokens()
 	if err != nil {

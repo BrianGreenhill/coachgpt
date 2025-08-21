@@ -51,9 +51,9 @@ func (p *HevyProvider) ShowConfig() string {
 	if !p.IsConfigured() {
 		return "❌ Hevy: Not configured"
 	}
-	
+
 	apiKey := os.Getenv("HEVY_API_KEY")
-	return fmt.Sprintf("✅ Hevy: Configured\n   API Key: %s***", 
+	return fmt.Sprintf("✅ Hevy: Configured\n   API Key: %s***",
 		apiKey[:min(8, len(apiKey))])
 }
 
@@ -61,12 +61,12 @@ func (p *HevyProvider) ShowConfig() string {
 func (p *HevyProvider) Setup(reader *bufio.Reader) error {
 	fmt.Println()
 	fmt.Println("💪 Hevy Setup")
-	
+
 	if p.IsConfigured() {
 		fmt.Println("Hevy is already configured:")
 		fmt.Println(p.ShowConfig())
 		fmt.Print("Do you want to reconfigure? (y/N): ")
-		
+
 		response, _ := reader.ReadString('\n')
 		response = strings.TrimSpace(strings.ToLower(response))
 		if response != "y" && response != "yes" {
@@ -75,7 +75,7 @@ func (p *HevyProvider) Setup(reader *bufio.Reader) error {
 		}
 		fmt.Println()
 	}
-	
+
 	fmt.Println("To set up Hevy, you need your API key:")
 	fmt.Println("1. Open the Hevy app")
 	fmt.Println("2. Go to Settings > Developer")
@@ -109,7 +109,7 @@ func (p *HevyProvider) GetLatest(ctx context.Context) (string, error) {
 	if p.client == nil {
 		return "", fmt.Errorf("provider not properly initialized - use regular setup, not setup-only instance")
 	}
-	
+
 	w, err := p.client.GetLatestWorkout(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to get latest Hevy workout: %v", err)
@@ -123,7 +123,7 @@ func (p *HevyProvider) Get(ctx context.Context, workoutID string) (string, error
 	if p.client == nil {
 		return "", fmt.Errorf("provider not properly initialized - use regular setup, not setup-only instance")
 	}
-	
+
 	// Note: Hevy API doesn't support getting specific workout by ID in current implementation
 	// This could be extended if the API supports it
 	return "", fmt.Errorf("getting specific workout by ID not yet supported for Hevy")

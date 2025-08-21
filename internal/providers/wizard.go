@@ -32,23 +32,23 @@ func SetupWizard(registry *Registry) error {
 	fmt.Println()
 	fmt.Println("✅ Configuration complete!")
 	fmt.Println("You can now run 'coachgpt' to fetch your latest workout data.")
-	
+
 	return nil
 }
 
 func showCurrentStatus(registry *Registry) {
 	fmt.Println("📋 Current Configuration Status:")
-	
+
 	allProviders := registry.All()
 	if len(allProviders) == 0 {
 		fmt.Println("No providers available.")
 		return
 	}
-	
+
 	for _, provider := range allProviders {
 		fmt.Println(provider.ShowConfig())
 	}
-	
+
 	fmt.Println()
 }
 
@@ -60,27 +60,27 @@ func selectProviders(reader *bufio.Reader, registry *Registry) []Provider {
 	// If everything is already configured, ask if they want to reconfigure
 	if len(configured) == len(allProviders) && len(configured) > 0 {
 		fmt.Println("All providers are already configured. Would you like to:")
-		
+
 		for i, provider := range allProviders {
 			fmt.Printf("%d. Reconfigure %s\n", i+1, provider.Description())
 		}
-		
+
 		if len(allProviders) > 1 {
 			fmt.Printf("%d. Reconfigure all\n", len(allProviders)+1)
 		}
-		
+
 		fmt.Printf("%d. Exit (nothing to do)\n", len(allProviders)+2)
 		fmt.Printf("Enter choice (1-%d): ", len(allProviders)+2)
-		
+
 		choice, _ := reader.ReadString('\n')
 		choice = strings.TrimSpace(choice)
-		
+
 		choiceNum, err := strconv.Atoi(choice)
 		if err != nil || choiceNum < 1 {
 			fmt.Println("Invalid choice, exiting.")
 			return []Provider{}
 		}
-		
+
 		if choiceNum <= len(allProviders) {
 			return []Provider{allProviders[choiceNum-1]}
 		} else if choiceNum == len(allProviders)+1 && len(allProviders) > 1 {
@@ -98,24 +98,24 @@ func selectProviders(reader *bufio.Reader, registry *Registry) []Provider {
 
 	// Mixed state - some configured, some not
 	fmt.Println("Choose what to set up:")
-	
+
 	options := []Provider{}
 	optionNum := 1
-	
+
 	// Add unconfigured providers
 	for _, provider := range unconfigured {
 		fmt.Printf("%d. Set up %s\n", optionNum, provider.Description())
 		options = append(options, provider)
 		optionNum++
 	}
-	
+
 	// Add reconfigure options for configured providers
 	for _, provider := range configured {
 		fmt.Printf("%d. Reconfigure %s\n", optionNum, provider.Description())
 		options = append(options, provider)
 		optionNum++
 	}
-	
+
 	// Add "all unconfigured" option if there are multiple unconfigured
 	allUnconfiguredIndex := -1
 	if len(unconfigured) > 1 {
@@ -123,12 +123,12 @@ func selectProviders(reader *bufio.Reader, registry *Registry) []Provider {
 		allUnconfiguredIndex = optionNum - 1
 		optionNum++
 	}
-	
+
 	fmt.Printf("Enter choice (1-%d): ", optionNum-1)
-	
+
 	choice, _ := reader.ReadString('\n')
 	choice = strings.TrimSpace(choice)
-	
+
 	choiceNum, err := strconv.Atoi(choice)
 	if err != nil || choiceNum < 1 || choiceNum > len(options)+1 {
 		fmt.Println("Invalid choice, defaulting to first option.")
@@ -137,29 +137,29 @@ func selectProviders(reader *bufio.Reader, registry *Registry) []Provider {
 		}
 		return []Provider{}
 	}
-	
+
 	if allUnconfiguredIndex != -1 && choiceNum-1 == allUnconfiguredIndex {
 		return unconfigured
 	}
-	
+
 	if choiceNum <= len(options) {
 		return []Provider{options[choiceNum-1]}
 	}
-	
+
 	return []Provider{}
 }
 
 func selectFromUnconfigured(reader *bufio.Reader, allProviders []Provider) []Provider {
 	fmt.Println("Which providers would you like to set up?")
-	
+
 	for i, provider := range allProviders {
 		fmt.Printf("%d. %s\n", i+1, provider.Description())
 	}
-	
+
 	if len(allProviders) > 1 {
 		fmt.Printf("%d. All providers\n", len(allProviders)+1)
 	}
-	
+
 	fmt.Printf("Enter choice (1-%d): ", len(allProviders)+1)
 
 	choice, _ := reader.ReadString('\n')
