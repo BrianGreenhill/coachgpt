@@ -1,3 +1,5 @@
 .envrc
 coverage*
 coachgpt
+dist/
+*.exe

@@ -76,10 +76,33 @@ build:
 	@echo "🔨 Building application..."
 	go build -o coachgpt .
 
+# Build with version information
+build-release:
+	@echo "🔨 Building release version..."
+	@VERSION=$$(git describe --tags --always --dirty 2>/dev/null || echo "dev"); \
+	COMMIT=$$(git rev-parse --short HEAD 2>/dev/null || echo "unknown"); \
+	DATE=$$(date -u +%Y-%m-%dT%H:%M:%SZ); \
+	go build -ldflags "-X main.version=$$VERSION -X main.commit=$$COMMIT -X main.date=$$DATE" -o coachgpt .
+
+# Build for all platforms (local cross-compilation)
+build-all:
+	@echo "🔨 Building for all platforms..."
+	@VERSION=$$(git describe --tags --always --dirty 2>/dev/null || echo "dev"); \
+	COMMIT=$$(git rev-parse --short HEAD 2>/dev/null || echo "unknown"); \
+	DATE=$$(date -u +%Y-%m-%dT%H:%M:%SZ); \
+	mkdir -p dist; \
+	GOOS=linux GOARCH=amd64 go build -ldflags "-X main.version=$$VERSION -X main.commit=$$COMMIT -X main.date=$$DATE" -o dist/coachgpt-linux-amd64 .; \
+	GOOS=linux GOARCH=arm64 go build -ldflags "-X main.version=$$VERSION -X main.commit=$$COMMIT -X main.date=$$DATE" -o dist/coachgpt-linux-arm64 .; \
+	GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.version=$$VERSION -X main.commit=$$COMMIT -X main.date=$$DATE" -o dist/coachgpt-darwin-amd64 .; \
+	GOOS=darwin GOARCH=arm64 go build -ldflags "-X main.version=$$VERSION -X main.commit=$$COMMIT -X main.date=$$DATE" -o dist/coachgpt-darwin-arm64 .; \
+	GOOS=windows GOARCH=amd64 go build -ldflags "-X main.version=$$VERSION -X main.commit=$$COMMIT -X main.date=$$DATE" -o dist/coachgpt-windows-amd64.exe .
+	@echo "✅ Binaries built in dist/ directory"
+
 # Clean build artifacts
 clean:
 	@echo "🧹 Cleaning..."
 	rm -f coachgpt coverage.out coverage.html
+	rm -rf dist/
 	@echo "🧹 Cleaning lint cache..."
 	@if command -v golangci-lint > /dev/null; then \
 		golangci-lint cache clean; \

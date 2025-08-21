@@ -2,6 +2,40 @@
 
 CoachGPT is a CLI that pulls runs from Strava and generates a detailed analysis including pace, heart rate zones, elevation, and splits - perfect for pasting into ChatGPT for coaching feedback.
 
+## Installation
+
+### Go Install (Recommended for Go users)
+```bash
+go install github.com/BrianGreenhill/coachgpt@latest
+```
+
+### Quick Install (macOS/Linux)
+```bash
+curl -fsSL https://raw.githubusercontent.com/BrianGreenhill/coachgpt/main/scripts/install.sh | bash
+```
+
+### Manual Download
+Download the latest binary for your platform from [Releases](https://github.com/BrianGreenhill/coachgpt/releases):
+
+- **macOS Intel**: `coachgpt-darwin-amd64`
+- **macOS Apple Silicon**: `coachgpt-darwin-arm64`  
+- **Linux x86_64**: `coachgpt-linux-amd64`
+- **Linux ARM64**: `coachgpt-linux-arm64`
+- **Windows**: `coachgpt-windows-amd64.exe`
+
+Make it executable and move to your PATH:
+```bash
+chmod +x coachgpt-*
+sudo mv coachgpt-* /usr/local/bin/coachgpt
+```
+
+### Build from Source
+```bash
+git clone https://github.com/BrianGreenhill/coachgpt.git
+cd coachgpt
+make build-release
+```
+
 ## Features
 
 - 🏃‍♂️ **Multiple Data Sources**: Fetches workouts from Strava (cardio) and Hevy (strength training)

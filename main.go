@@ -10,6 +10,13 @@ import (
 	"briangreenhill/coachgpt/internal/providers"
 )
 
+// Build-time variables
+var (
+	version = "dev"
+	commit  = "unknown"
+	date    = "unknown"
+)
+
 func main() {
 	if err := run(os.Args[1:]); err != nil {
 		log.Fatalf("Error: %v", err)
@@ -52,7 +59,9 @@ func parseArgs(args []string) (providerName, workoutID string) {
 			fmt.Println("  HEVY_API_KEY        Your Hevy API key (required for strength)")
 			os.Exit(0)
 		case "version", "--version", "-v":
-			fmt.Println("CoachGPT v0.1.0")
+			fmt.Printf("CoachGPT %s\n", version)
+			fmt.Printf("Commit: %s\n", commit)
+			fmt.Printf("Built: %s\n", date)
 			os.Exit(0)
 		case "strength", "--strength", "-s":
 			return "hevy", ""
