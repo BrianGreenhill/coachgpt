@@ -119,11 +119,11 @@ func TestHTTPCacheOperations(t *testing.T) {
 	// Note: Since httpcache works transparently with HTTP requests,
 	// we can't easily test the internal cache operations without making
 	// actual HTTP requests. This test verifies the transport is configured correctly.
-	
+
 	if transport == nil {
 		t.Fatal("Transport should not be nil")
 	}
-	
+
 	if client == nil {
 		t.Fatal("HTTP client should not be nil")
 	}
@@ -156,7 +156,7 @@ func TestStravaClientCreation(t *testing.T) {
 	if clientWithHTTP == nil {
 		t.Error("Client with HTTP client should not be nil")
 	}
-	
+
 	if clientWithHTTP.HTTPClient != httpClient {
 		t.Error("HTTP client not properly assigned")
 	}

@@ -91,12 +91,12 @@ func (c *Client) apiGETCached(token, path string, params map[string]string, out 
 		return err
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("GET %s -> %s: %s", path, resp.Status, string(body))
 	}
-	
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err

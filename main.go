@@ -78,7 +78,7 @@ func runStravaIntegration() {
 	// Create HTTP client with caching transport
 	transport := httpcache.NewMemoryCacheTransport()
 	httpClient := &http.Client{Transport: transport}
-	
+
 	// Create Strava client with cached HTTP client
 	client := strava.NewClientWithHTTP(clientID, clientSecret, httpClient)
 
