@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 )
 
 // Split represents a metric split from a Strava activity
@@ -68,7 +67,7 @@ type Streams struct {
 }
 
 // apiGETCached performs a GET request to the Strava API with automatic caching via httpcache
-func (c *Client) apiGETCached(token, path string, params map[string]string, out any, ttl time.Duration) error {
+func (c *Client) apiGETCached(token, path string, params map[string]string, out any) error {
 	u := APIBase + path
 	req, err := http.NewRequest("GET", u, nil)
 	if err != nil {
@@ -116,7 +115,7 @@ func (c *Client) apiGETCached(token, path string, params map[string]string, out 
 // GetLatestRun gets the most recent running activity
 func (c *Client) GetLatestRun(token string) (*Activity, error) {
 	var activities []Activity
-	if err := c.apiGETCached(token, "/athlete/activities", map[string]string{"per_page": "10", "include_all_efforts": "true"}, &activities, 24*time.Hour); err != nil {
+	if err := c.apiGETCached(token, "/athlete/activities", map[string]string{"per_page": "10", "include_all_efforts": "true"}, &activities); err != nil {
 		return nil, err
 	}
 	for _, a := range activities {
@@ -130,14 +129,14 @@ func (c *Client) GetLatestRun(token string) (*Activity, error) {
 // GetActivity gets a specific activity by ID
 func (c *Client) GetActivity(token string, id int64) (*Activity, error) {
 	var activity Activity
-	err := c.apiGETCached(token, fmt.Sprintf("/activities/%d", id), map[string]string{"include_all_efforts": "true"}, &activity, 24*time.Hour)
+	err := c.apiGETCached(token, fmt.Sprintf("/activities/%d", id), map[string]string{"include_all_efforts": "true"}, &activity)
 	return &activity, err
 }
 
 // GetLaps gets the laps for a specific activity
 func (c *Client) GetLaps(token string, id int64) ([]Lap, error) {
 	var laps []Lap
-	err := c.apiGETCached(token, fmt.Sprintf("/activities/%d/laps", id), nil, &laps, 24*time.Hour)
+	err := c.apiGETCached(token, fmt.Sprintf("/activities/%d/laps", id), nil, &laps)
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +147,7 @@ func (c *Client) GetLaps(token string, id int64) ([]Lap, error) {
 func (c *Client) GetStreams(token string, id int64) (*Streams, error) {
 	var raw map[string]Stream
 	err := c.apiGETCached(token, fmt.Sprintf("/activities/%d/streams", id),
-		map[string]string{"keys": "time,heartrate,velocity_smooth,distance,altitude", "key_by_type": "true"}, &raw, 24*time.Hour)
+		map[string]string{"keys": "time,heartrate,velocity_smooth,distance,altitude", "key_by_type": "true"}, &raw)
 	if err != nil {
 		return nil, err
 	}

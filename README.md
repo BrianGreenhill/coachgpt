@@ -4,7 +4,8 @@ CoachGPT is a CLI that pulls runs from Strava and generates a detailed analysis 
 
 ## Features
 
-- 🏃‍♂️ Fetches your latest run or a specific activity from Strava
+- 🏃‍♂️ **Multiple Data Sources**: Fetches workouts from Strava (cardio) and Hevy (strength training)
+- 🔌 **Plugin Architecture**: Extensible plugin system for adding new fitness data sources
 - 📊 Analyzes heart rate zones, pace, and elevation data
 - 📈 Provides detailed split and lap breakdowns
 - 💾 Intelligent caching with ETag support for efficient API usage
@@ -13,6 +14,7 @@ CoachGPT is a CLI that pulls runs from Strava and generates a detailed analysis 
 
 ## Setup
 
+### Strava Integration
 1. Create a Strava application at https://www.strava.com/settings/api
 2. Set your environment variables:
    ```bash
@@ -20,22 +22,34 @@ CoachGPT is a CLI that pulls runs from Strava and generates a detailed analysis 
    export STRAVA_CLIENT_SECRET="your_client_secret"
    export STRAVA_HRMAX="185"  # Your maximum heart rate
    ```
-3. Optionally, set a specific activity ID:
+
+### Hevy Integration (Optional)
+1. Get your Hevy API key from your Hevy account
+2. Set the environment variable:
    ```bash
-   export STRAVA_ACTIVITY_ID="1234567890"
+   export HEVY_API_KEY="your_api_key"
    ```
+
+### Activity Selection
+Optionally, set a specific activity ID:
+```bash
+export STRAVA_ACTIVITY_ID="1234567890"
+```
 
 ## Usage
 
 ```bash
-# Run with latest activity
+# Run with latest Strava activity (default)
 go run .
 
-# Run with specific activity
+# Run with strength training from Hevy
+go run . --strength
+
+# Run with specific Strava activity
 STRAVA_ACTIVITY_ID=1234567890 go run .
 
-# Disable caching for fresh data
-STRAVA_NOCACHE=1 go run .
+# Show help
+go run . --help
 ```
 
 ## Testing
@@ -46,11 +60,8 @@ This project includes comprehensive tests covering all core functionality:
 # Run all tests
 make test
 
-# Run unit tests only  
+# Run unit tests  
 make test-unit
-
-# Run integration tests
-make test-integration
 ```
 
 ## Development
@@ -82,11 +93,7 @@ chmod +x .git/hooks/pre-commit
 # Run with coverage report
 make test-coverage
 
-# Run integration tests
-make test-integration
 ```
-
-See [TESTING.md](TESTING.md) for detailed testing information.
 
 ## Development
 

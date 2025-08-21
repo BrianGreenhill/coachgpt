@@ -5,9 +5,8 @@
 # Default target
 help:
 	@echo "Available commands:"
-	@echo "  test           - Run all tests (unit + integration)"
-	@echo "  test-unit      - Run unit tests only"
-	@echo "  test-integration - Run integration tests"
+	@echo "  test           - Run all tests"
+	@echo "  test-unit      - Run unit tests"
 	@echo "  test-coverage  - Run tests with coverage report"
 	@echo "  lint           - Run static code analysis (linting)"
 	@echo "  lint-fix       - Run linting with auto-fixes"
@@ -19,17 +18,17 @@ help:
 	@echo "  run            - Run the application (requires env vars)"
 
 # Run all tests
-test: test-unit test-integration
+test:
+	@echo "🔬 Running all tests..."
+	go test -v ./...
 
 # Run unit tests
 test-unit:
 	@echo "🔬 Running unit tests..."
-	go test -v
+	go test -v ./...
 
-# Run integration tests
-test-integration:
-	@echo "🧪 Running integration tests..."
-	./test.sh
+# Run integration tests (same as unit tests now)
+test-integration: test-unit
 
 # Run tests with coverage
 test-coverage:
