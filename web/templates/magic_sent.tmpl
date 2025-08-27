@@ -1,0 +1,13 @@
+{{ define "magic_sent" }}
+{{ template "base_top" . }}
+<article>
+  <h3>Check your email</h3>
+  <p>We sent a sign-in link to <strong>{{ .Email }}</strong>.</p>
+  <details open>
+    <summary>Developer shortcut (local only)</summary>
+    <p><a href="{{ .URL }}">Sign in now</a></p>
+  </details>
+</article>
+{{ template "base_bottom" . }}
+{{ end }}
+

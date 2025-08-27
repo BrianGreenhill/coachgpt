@@ -1,0 +1,15 @@
+{{ define "login" }}
+{{ template "base_top" . }}
+<article>
+  <hgroup>
+    <h3>Log in</h3>
+    <p>Enter your email and we'll send you a magic link.</p>
+  </hgroup>
+  <form method="post" action="/auth/magic-link">
+    <input type="email" name="email" placeholder="you@example.com" required />
+    <button type="submit">Send magic link</button>
+  </form>
+</article>
+{{ template "base_bottom" . }}
+{{ end }}
+
