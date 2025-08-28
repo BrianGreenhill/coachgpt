@@ -113,9 +113,9 @@ func TestSmokeTest(t *testing.T) {
 	// Setup HTTP server with mock Strava endpoints
 	sess := scs.New()
 	tmpl := template.Must(template.New("test").Parse(`
-		{{define "invite_created.tmpl"}}Invite URL: {{.InviteURL}}{{end}}
-		{{define "athlete_consent.tmpl"}}Consent Page{{end}}
-		{{define "athlete_connected.tmpl"}}Connected!{{end}}
+		{{define "invite_created"}}Invite URL: {{.InviteURL}}{{end}}
+		{{define "athlete_consent"}}Consent Page{{end}}
+		{{define "athlete_connected"}}Connected!{{end}}
 	`))
 
 	ml := auth.MagicLink{Secret: []byte(cfg.JWTSecret), BaseURL: cfg.BaseURL}

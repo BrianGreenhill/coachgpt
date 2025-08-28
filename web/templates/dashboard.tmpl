@@ -8,7 +8,7 @@
   {{ else }}
     <table>
       <thead>
-        <tr><th>Name</th><th>Email</th><th>Strava</th></tr>
+        <tr><th>Name</th><th>Email</th><th>Strava</th><th>Actions</th></tr>
       </thead>
       <tbody>
         {{ range .Athletes }}
@@ -19,6 +19,9 @@
             </td>
             <td>
               {{ if .StravaAccessToken.Valid }}Connected{{ else }}Not connected{{ end }}
+            </td>
+            <td>
+              <a href="/athletes/{{ .ID }}/workouts" style="color: blue; text-decoration: underline;">View Workouts</a>
             </td>
           </tr>
         {{ end }}

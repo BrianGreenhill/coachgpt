@@ -53,3 +53,11 @@ INSERT INTO workout (
 SET name = $3, sport=$4, started_at=$5,
     duration_sec=$6, distance_m=$7, elev_gain_m=$8, avg_hr=$9,
     raw_json=$10, updated_at=now();
+
+-- name: ListWorkoutsByAthlete :many
+SELECT id, athlete_id, source, source_id, name, sport, started_at, 
+       duration_sec, distance_m, elev_gain_m, avg_hr, created_at, updated_at
+FROM workout 
+WHERE athlete_id = $1 
+ORDER BY started_at DESC 
+LIMIT $2;

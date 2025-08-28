@@ -150,6 +150,70 @@ func (q *Queries) ListAthletesByCoach(ctx context.Context, coachID uuid.UUID) ([
 	return items, nil
 }
 
+const listWorkoutsByAthlete = `-- name: ListWorkoutsByAthlete :many
+SELECT id, athlete_id, source, source_id, name, sport, started_at, 
+       duration_sec, distance_m, elev_gain_m, avg_hr, created_at, updated_at
+FROM workout 
+WHERE athlete_id = $1 
+ORDER BY started_at DESC 
+LIMIT $2
+`
+
+type ListWorkoutsByAthleteParams struct {
+	AthleteID uuid.UUID
+	Limit     int32
+}
+
+type ListWorkoutsByAthleteRow struct {
+	ID          uuid.UUID
+	AthleteID   uuid.UUID
+	Source      string
+	SourceID    int64
+	Name        pgtype.Text
+	Sport       string
+	StartedAt   pgtype.Timestamptz
+	DurationSec int32
+	DistanceM   pgtype.Float8
+	ElevGainM   pgtype.Float8
+	AvgHr       pgtype.Int4
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
+func (q *Queries) ListWorkoutsByAthlete(ctx context.Context, arg ListWorkoutsByAthleteParams) ([]ListWorkoutsByAthleteRow, error) {
+	rows, err := q.db.Query(ctx, listWorkoutsByAthlete, arg.AthleteID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListWorkoutsByAthleteRow
+	for rows.Next() {
+		var i ListWorkoutsByAthleteRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AthleteID,
+			&i.Source,
+			&i.SourceID,
+			&i.Name,
+			&i.Sport,
+			&i.StartedAt,
+			&i.DurationSec,
+			&i.DistanceM,
+			&i.ElevGainM,
+			&i.AvgHr,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setAthleteStravaTokens = `-- name: SetAthleteStravaTokens :exec
 UPDATE athlete
 SET strava_athlete_id = $2,

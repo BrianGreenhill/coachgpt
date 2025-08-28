@@ -42,8 +42,13 @@ func main() {
 	sess.Cookie.SameSite = http.SameSiteLaxMode
 	sess.Cookie.Secure = false
 
-	// Templates
-	tmpl := template.Must(template.ParseGlob("web/templates/*.tmpl"))
+	// Templates with custom functions
+	funcMap := template.FuncMap{
+		"div":  func(a, b int32) int32 { return a / b },
+		"mod":  func(a, b int32) int32 { return a % b },
+		"divf": func(a, b float64) float64 { return a / b },
+	}
+	tmpl := template.Must(template.New("").Funcs(funcMap).ParseGlob("web/templates/*.tmpl"))
 
 	// Magic link helper
 	ml := auth.MagicLink{

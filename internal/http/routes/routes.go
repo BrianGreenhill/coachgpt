@@ -80,6 +80,8 @@ func New(sess *scs.SessionManager, tmpl *template.Template, queries *db.Queries,
 		pr.Use(appmw.RequireAuth)
 		pr.Post("/athletes", s.handleCreateAthlete)
 		pr.Get("/dashboard", s.handleDashboard)
+		pr.Get("/athletes/{athleteID}/workouts", s.handleAthleteWorkouts)
+		pr.Post("/athletes/{athleteID}/sync", s.handleTriggerSync)
 	})
 
 	return s
@@ -97,7 +99,10 @@ func (s *Server) sessionToContext(next http.Handler) http.Handler {
 
 func (s *Server) render(w http.ResponseWriter, name string, data any) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_ = s.Tmpl.ExecuteTemplate(w, name, data)
+	if err := s.Tmpl.ExecuteTemplate(w, name, data); err != nil {
+		log.Printf("render template %s failed: %v", name, err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+	}
 }
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
@@ -379,4 +384,119 @@ func (s *Server) handleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	s.Sess.Put(r.Context(), "coach_id", coach.ID.String())
 	http.Redirect(w, r, "/dashboard", http.StatusFound)
+}
+
+func (s *Server) handleAthleteWorkouts(w http.ResponseWriter, r *http.Request) {
+	coachID := r.Context().Value(appmw.CoachIDKey).(string)
+	athleteID := chi.URLParam(r, "athleteID")
+
+	// Parse athlete ID
+	aid, err := uuid.Parse(athleteID)
+	if err != nil {
+		http.Error(w, "invalid athlete ID", http.StatusBadRequest)
+		return
+	}
+
+	// Get athlete and verify it belongs to this coach
+	athlete, err := s.Q.GetAthlete(r.Context(), aid)
+	if err != nil {
+		http.Error(w, "athlete not found", http.StatusNotFound)
+		return
+	}
+
+	// Verify coach ownership
+	if athlete.CoachID.String() != coachID {
+		http.Error(w, "access denied", http.StatusForbidden)
+		return
+	}
+
+	// Get workouts for this athlete (limit to 50 most recent)
+	workouts, err := s.Q.ListWorkoutsByAthlete(r.Context(), db.ListWorkoutsByAthleteParams{
+		AthleteID: aid,
+		Limit:     50,
+	})
+	if err != nil {
+		log.Printf("failed to list workouts for athlete %s: %v", athleteID, err)
+		http.Error(w, "failed to load workouts", http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("found workouts for athlete=%s: %d", athleteID, len(workouts))
+
+	data := struct {
+		Title    string
+		Athlete  db.Athlete
+		Workouts []db.ListWorkoutsByAthleteRow
+	}{
+		Title:    "Workouts - " + athlete.Name,
+		Athlete:  athlete,
+		Workouts: workouts,
+	}
+
+	s.render(w, "workouts", data)
+}
+
+func (s *Server) handleTriggerSync(w http.ResponseWriter, r *http.Request) {
+	coachID := r.Context().Value(appmw.CoachIDKey).(string)
+	athleteID := chi.URLParam(r, "athleteID")
+
+	// Parse athlete ID
+	aid, err := uuid.Parse(athleteID)
+	if err != nil {
+		http.Error(w, "invalid athlete ID", http.StatusBadRequest)
+		return
+	}
+
+	// Get athlete and verify it belongs to this coach
+	athlete, err := s.Q.GetAthlete(r.Context(), aid)
+	if err != nil {
+		http.Error(w, "athlete not found", http.StatusNotFound)
+		return
+	}
+
+	// Verify coach ownership
+	if athlete.CoachID.String() != coachID {
+		http.Error(w, "access denied", http.StatusForbidden)
+		return
+	}
+
+	// Verify athlete has Strava connection
+	if !athlete.StravaAccessToken.Valid {
+		http.Error(w, "athlete not connected to Strava", http.StatusBadRequest)
+		return
+	}
+
+	// Queue sync job with force flag for manual syncs
+	client := asynq.NewClient(asynq.RedisClientOpt{Addr: s.RedisAddr})
+	defer func() {
+		if closeErr := client.Close(); closeErr != nil {
+			log.Printf("Error closing asynq client: %v", closeErr)
+		}
+	}()
+
+	// For manual syncs, go back further to catch title/data changes
+	forceFromTime := time.Now().AddDate(0, 0, -30).Unix() // 30 days back
+	payload, err := json.Marshal(jobs.SyncStravaPayload{
+		AthleteID: athleteID,
+		SinceUnix: forceFromTime,
+	})
+	if err != nil {
+		log.Printf("failed to marshal sync payload: %v", err)
+		http.Error(w, "failed to queue sync job", http.StatusInternalServerError)
+		return
+	}
+
+	task := asynq.NewTask(jobs.TaskSyncStrava, payload)
+	info, err := client.Enqueue(task, asynq.Queue("sync"))
+	if err != nil {
+		log.Printf("failed to enqueue sync job: %v", err)
+		http.Error(w, "failed to queue sync job", http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("sync job queued for athlete %s: %s", athleteID, info.ID)
+	w.WriteHeader(http.StatusOK)
+	if _, err := w.Write([]byte("sync job queued")); err != nil {
+		log.Printf("Error writing sync response: %v", err)
+	}
 }

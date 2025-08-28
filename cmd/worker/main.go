@@ -158,6 +158,7 @@ func syncStravaForAthlete(ctx context.Context, q *db.Queries, clientID, clientSe
 	}
 	if p.SinceUnix != 0 {
 		since = time.Unix(p.SinceUnix, 0)
+		log.Printf("[sync] athlete=%s using custom since time: %v", aid, since)
 	}
 
 	httpClient := &http.Client{
