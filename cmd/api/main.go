@@ -23,6 +23,7 @@ import (
 func main() {
 	cfg := config.Load()
 
+	// Logger
 	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
 	log.Printf("starting app on :%s", cfg.Port)
 
@@ -50,8 +51,14 @@ func main() {
 		BaseURL: cfg.BaseURL,
 	}
 
+	// Invite link helper
+	inv := auth.InviteLink{
+		Secret:  []byte(cfg.JWTSecret),
+		BaseURL: cfg.BaseURL,
+	}
+
 	// Router / server
-	s := routes.New(sess, tmpl, queries, ml, cfg.BaseURL)
+	s := routes.New(sess, tmpl, queries, ml, inv, cfg)
 	h := hlog.NewHandler(logger)(s.Router)
 
 	srv := &http.Server{Addr: ":" + cfg.Port, Handler: sess.LoadAndSave(h)}

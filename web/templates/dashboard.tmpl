@@ -1,8 +1,39 @@
 {{ define "dashboard" }}
 {{ template "base_top" . }}
 <article>
-  <h3>Dashboard</h3>
-  <p>You're logged in. This is the protected area where we'll add athletes, syncs, etc.</p>
+  <h3>Your athletes</h3>
+
+  {{ if not .Athletes }}
+    <p>No athletes yet.</p>
+  {{ else }}
+    <table>
+      <thead>
+        <tr><th>Name</th><th>Email</th><th>Strava</th></tr>
+      </thead>
+      <tbody>
+        {{ range .Athletes }}
+          <tr>
+            <td>{{ .Name }}</td>
+            <td>
+              {{ if .Email.Valid }}{{ .Email.String }}{{ else }}—{{ end }}
+            </td>
+            <td>
+              {{ if .StravaAccessToken.Valid }}Connected{{ else }}Not connected{{ end }}
+            </td>
+          </tr>
+        {{ end }}
+      </tbody>
+    </table>
+  {{ end }}
+
+  <details style="margin-top:1rem">
+    <summary>Add new athlete</summary>
+    <form method="post" action="/athletes">
+      <input name="name" placeholder="Athlete name" required>
+      <input name="email" type="email" placeholder="Athlete email (required)" required>
+      <button type="submit">Create & get invite link</button>
+    </form>
+  </details>
 </article>
 {{ template "base_bottom" . }}
 {{ end }}

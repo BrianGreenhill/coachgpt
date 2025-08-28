@@ -1,0 +1,10 @@
+{{ define "invite_created" }}
+{{ template "base_top" . }}
+<article>
+  <h3>Invite link created</h3>
+  <p>Share this link with your athlete:</p>
+  <p><a href="{{ .InviteURL }}">{{ .InviteURL }}</a></p>
+  <p><a href="/dashboard">Back to dashboard</a></p>
+</article>
+{{ template "base_bottom" . }}
+{{ end }}

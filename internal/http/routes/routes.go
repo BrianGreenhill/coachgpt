@@ -2,51 +2,83 @@ package routes
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/json"
 	"html/template"
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
 	scs "github.com/alexedwards/scs/v2"
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
+	"github.com/google/uuid"
+	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgtype"
+	"golang.org/x/oauth2"
 
 	"github.com/briangreenhill/coachgpt/internal/auth"
+	"github.com/briangreenhill/coachgpt/internal/config"
 	"github.com/briangreenhill/coachgpt/internal/db"
 	appmw "github.com/briangreenhill/coachgpt/internal/http/middleware"
+	"github.com/briangreenhill/coachgpt/internal/jobs"
 )
 
 type Server struct {
-	Router  *chi.Mux
-	Sess    *scs.SessionManager
-	Tmpl    *template.Template
-	Q       *db.Queries    // sqlc queries
-	Magic   auth.MagicLink // magic-link helper
-	BaseURL string
+	Router      *chi.Mux
+	Sess        *scs.SessionManager
+	Tmpl        *template.Template
+	Q           *db.Queries    // sqlc queries
+	Magic       auth.MagicLink // magic-link helper
+	BaseURL     string
+	Invite      auth.InviteLink // invite-link helper
+	StravaConf  *oauth2.Config
+	StateSecret string // for signing oauth2 state param
+	RedisAddr   string
 }
 
-func New(sess *scs.SessionManager, tmpl *template.Template, queries *db.Queries, ml auth.MagicLink, baseURL string) *Server {
+func New(sess *scs.SessionManager, tmpl *template.Template, queries *db.Queries, ml auth.MagicLink, inv auth.InviteLink, cfg config.Config) *Server {
 	r := chi.NewRouter()
 	r.Use(chimw.RequestID)
 	r.Use(chimw.RealIP)
 	r.Use(chimw.Logger)
 	r.Use(chimw.Recoverer)
 
-	s := &Server{Router: r, Sess: sess, Tmpl: tmpl, Q: queries, Magic: ml, BaseURL: baseURL}
+	s := &Server{Router: r, Sess: sess, Tmpl: tmpl, Q: queries, Magic: ml, BaseURL: cfg.BaseURL, Invite: inv, StateSecret: cfg.JWTSecret, RedisAddr: cfg.RedisAddr}
+	s.StravaConf = &oauth2.Config{
+		ClientID:     cfg.Strava.ClientID,
+		ClientSecret: cfg.Strava.ClientSecret,
+		RedirectURL:  cfg.BaseURL + "/oauth/strava/callback",
+		Scopes:       []string{"read", "activity:read_all"},
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  "https://www.strava.com/oauth/authorize",
+			TokenURL: "https://www.strava.com/oauth/token",
+		},
+	}
 
-	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("ok")) })
+	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		if _, err := w.Write([]byte("ok")); err != nil {
+			log.Printf("Error writing health check response: %v", err)
+		}
+	})
 
 	r.Get("/", s.handleHome)
 	r.Get("/login", s.handleLogin)
 	r.Post("/auth/magic-link", s.handleMagicLink)
 	r.Get("/auth/callback", s.handleCallback)
+	r.Get("/invite", s.handleAthleteInvite) // public, but needs token
+	r.Get("/oauth/strava/start", s.handleStravaStart)
+	r.Get("/oauth/strava/callback", s.handleStravaCallback)
 
 	r.Group(func(pr chi.Router) {
 		pr.Use(s.sessionToContext)
 		pr.Use(appmw.RequireAuth)
+		pr.Post("/athletes", s.handleCreateAthlete)
 		pr.Get("/dashboard", s.handleDashboard)
 	})
 
@@ -73,7 +105,203 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
-	s.render(w, "dashboard", map[string]any{"Title": "Dashboard"})
+	coachID := s.Sess.GetString(r.Context(), "coach_id")
+	if coachID == "" {
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+
+	cid := uuid.MustParse(coachID)
+
+	athletes, err := s.Q.ListAthletesByCoach(r.Context(), cid)
+	if err != nil {
+		log.Printf("list athletes failed: %v", err)
+		http.Error(w, "could not load athletes", 500)
+		return
+	}
+
+	s.render(w, "dashboard", map[string]any{
+		"Title":    "Dashboard",
+		"Athletes": athletes,
+	})
+}
+
+func (s *Server) handleCreateAthlete(w http.ResponseWriter, r *http.Request) {
+	_ = r.ParseForm()
+	name := strings.TrimSpace(r.Form.Get("name"))
+	email := strings.TrimSpace(r.Form.Get("email"))
+	if name == "" {
+		http.Error(w, "name required", 400)
+		return
+	}
+	if email == "" {
+		http.Error(w, "email required", 400)
+		return
+	}
+
+	coachID := s.Sess.GetString(r.Context(), "coach_id")
+	coachUUID := uuid.MustParse(coachID)
+
+	a, err := s.Q.CreateAthlete(r.Context(), db.CreateAthleteParams{
+		CoachID: coachUUID, // <- uuid.UUID, not pgtype.UUID
+		Name:    name,
+		Email:   pgtype.Text{String: email, Valid: true},
+		Tz:      "Europe/Berlin",
+	})
+	if err != nil {
+		log.Printf("create athlete failed: %v", err)
+		http.Error(w, "could not create athlete", 500)
+		return
+	}
+
+	invite := s.Invite.URL(coachID, a.ID.String(), 7*24*time.Hour)
+	s.render(w, "invite_created", map[string]any{
+		"Title":     "Invite Link",
+		"InviteURL": invite,
+		"Athlete":   a,
+	})
+}
+
+func (s *Server) handleAthleteInvite(w http.ResponseWriter, r *http.Request) {
+	tok := r.URL.Query().Get("token")
+	coachID, athleteID, err := s.Invite.Verify(tok)
+	if err != nil {
+		log.Printf("[invite] verify failed: %v", err)
+		http.Error(w, "invalid or expired token", http.StatusUnauthorized)
+		return
+	}
+
+	s.render(w, "athlete_consent", map[string]any{
+		"Title":     "Connect Strava",
+		"CoachID":   coachID,
+		"AthleteID": athleteID,
+		"Token":     tok,
+	})
+}
+
+func (s *Server) handleStravaStart(w http.ResponseWriter, r *http.Request) {
+	aid := r.URL.Query().Get("aid")
+	state := s.signState(aid, time.Now().Add(30*time.Minute))
+
+	authURL := s.StravaConf.AuthCodeURL(
+		state,
+		oauth2.SetAuthURLParam("scope", "read,activity:read_all"),
+		oauth2.SetAuthURLParam("approval_prompt", "auto"),
+	)
+
+	http.Redirect(w, r, authURL, http.StatusFound)
+}
+
+func (s *Server) handleStravaCallback(w http.ResponseWriter, r *http.Request) {
+	code := r.URL.Query().Get("code")
+	state := r.URL.Query().Get("state")
+	athleteID, ok := s.verifyState(state)
+	if !ok {
+		http.Error(w, "invalid state", 400)
+		return
+	}
+
+	tok, err := s.StravaConf.Exchange(r.Context(), code)
+	if err != nil {
+		log.Printf("strava token exchange failed: %v", err)
+		http.Error(w, "could not exchange token", 500)
+		return
+	}
+
+	id := uuid.MustParse(athleteID)
+	expiry := tok.Expiry
+
+	// Extract Strava athlete ID from token response
+	var stravaAthleteID pgtype.Int8
+	if rawToken, ok := tok.Extra("athlete").(map[string]interface{}); ok {
+		if stravaID, ok := rawToken["id"].(float64); ok {
+			stravaAthleteID = pgtype.Int8{Int64: int64(stravaID), Valid: true}
+		}
+	}
+
+	if err := s.Q.SetAthleteStravaTokens(r.Context(), db.SetAthleteStravaTokensParams{
+		ID:                 id,
+		StravaAthleteID:    stravaAthleteID,
+		StravaAccessToken:  pgtype.Text{String: tok.AccessToken, Valid: true},
+		StravaRefreshToken: pgtype.Text{String: tok.RefreshToken, Valid: true},
+		StravaTokenExpiry:  pgtype.Timestamptz{Time: expiry, Valid: true},
+	}); err != nil {
+		log.Printf("set athlete strava token failed: %v", err)
+		http.Error(w, "could not save token", 500)
+		return
+	}
+
+	client := asynq.NewClient(asynq.RedisClientOpt{Addr: s.RedisAddr})
+	defer func() {
+		if closeErr := client.Close(); closeErr != nil {
+			log.Printf("Error closing asynq client: %v", closeErr)
+		}
+	}()
+	payload, _ := json.Marshal(jobs.SyncStravaPayload{AthleteID: athleteID})
+	task := asynq.NewTask(jobs.TaskSyncStrava, payload)
+
+	// Configure retry policy for better reliability
+	info, err := client.Enqueue(task,
+		asynq.Queue("sync"),
+		asynq.MaxRetry(3),
+		asynq.Timeout(5*time.Minute),
+	)
+	if err != nil {
+		log.Printf("[asynq] enqueue failed: %v", err)
+	} else {
+		log.Printf("[asynq] enqueued task: id=%s queue=%s maxRetry=3", info.ID, info.Queue)
+	}
+
+	s.render(w, "athlete_connected", map[string]any{
+		"Title": "Connected",
+		"Msg":   "Strava connected! You can close this window.",
+	})
+}
+
+func (s *Server) signState(athleteID string, exp time.Time) string {
+	msg := athleteID + "|" + strconv.FormatInt(exp.Unix(), 10)
+	mac := hmac.New(sha256.New, []byte(s.StateSecret))
+	mac.Write([]byte(msg))
+	sig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	pl := base64.RawURLEncoding.EncodeToString([]byte(msg))
+	return pl + "." + sig
+}
+
+func (s *Server) verifyState(state string) (athleteID string, ok bool) {
+	parts := strings.SplitN(state, ".", 2)
+	if len(parts) != 2 {
+		return
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[0])
+	if err != nil {
+		return
+	}
+
+	mac := hmac.New(sha256.New, []byte(s.StateSecret))
+	mac.Write(payload)
+
+	expected := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	if !hmac.Equal([]byte(expected), []byte(parts[1])) {
+		return
+	}
+
+	fields := strings.SplitN(string(payload), "|", 2)
+	if len(fields) != 2 {
+		return
+	}
+
+	athleteID = fields[0]
+	expUnix, err := strconv.ParseInt(fields[1], 10, 64)
+	if err != nil {
+		return
+	}
+
+	if time.Now().After(time.Unix(expUnix, 0)) {
+		return
+	}
+
+	ok = true
+	return
 }
 
 func (s *Server) handleMagicLink(w http.ResponseWriter, r *http.Request) {
@@ -89,6 +317,7 @@ func (s *Server) handleMagicLink(w http.ResponseWriter, r *http.Request) {
 
 	url, err := s.issueMagicLink(r.Context(), email)
 	if err != nil {
+		log.Printf("[auth] issue link failed for %s: %v", email, err)
 		http.Error(w, "could not issue link", 500)
 		return
 	}

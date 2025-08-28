@@ -14,6 +14,14 @@ type Config struct {
 	SessionKey  string `env:"SESSION_KEY,required"`
 	JWTSecret   string `env:"JWT_SECRET,required"`
 	BaseURL     string `env:"BASE_URL,required"`
+	Strava      StravaConfig
+
+	RedisAddr string `env:"REDIS_ADDR,required"`
+}
+
+type StravaConfig struct {
+	ClientID     string `env:"STRAVA_CLIENT_ID,required"`
+	ClientSecret string `env:"STRAVA_CLIENT_SECRET,required"`
 }
 
 func Load() Config {
