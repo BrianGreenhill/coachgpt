@@ -213,9 +213,21 @@ func (s *Server) handleStravaCallback(w http.ResponseWriter, r *http.Request) {
 
 	// Extract Strava athlete ID from token response
 	var stravaAthleteID pgtype.Int8
-	if rawToken, ok := tok.Extra("athlete").(map[string]interface{}); ok {
-		if stravaID, ok := rawToken["id"].(float64); ok {
-			stravaAthleteID = pgtype.Int8{Int64: int64(stravaID), Valid: true}
+
+	// Fetch athlete profile to get Strava athlete ID
+	req, err := http.NewRequest("GET", "https://www.strava.com/api/v3/athlete", nil)
+	if err == nil {
+		req.Header.Set("Authorization", "Bearer "+tok.AccessToken)
+		client := &http.Client{Timeout: 10 * time.Second}
+		resp, err := client.Do(req)
+		if err == nil && resp.StatusCode == 200 {
+			defer resp.Body.Close() //nolint:errcheck
+			var athlete map[string]interface{}
+			if json.NewDecoder(resp.Body).Decode(&athlete) == nil {
+				if stravaID, ok := athlete["id"].(float64); ok {
+					stravaAthleteID = pgtype.Int8{Int64: int64(stravaID), Valid: true}
+				}
+			}
 		}
 	}
 

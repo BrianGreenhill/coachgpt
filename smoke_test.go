@@ -128,6 +128,26 @@ func TestSmokeTest(t *testing.T) {
 	server.StravaConf.Endpoint.TokenURL = mockStrava.server.URL + "/oauth/token"
 
 	t.Run("complete_user_experience", func(t *testing.T) {
+		// Test data to clean up
+		var createdCoachID, createdAthleteID string
+
+		// Cleanup function to run after test
+		defer func() {
+			if createdAthleteID != "" {
+				if _, err := pool.Exec(ctx, "DELETE FROM athlete WHERE id = $1", createdAthleteID); err != nil {
+					t.Logf("Warning: Failed to cleanup athlete %s: %v", createdAthleteID, err)
+				} else {
+					t.Logf("🧹 Cleaned up athlete: %s", createdAthleteID)
+				}
+			}
+			if createdCoachID != "" {
+				if _, err := pool.Exec(ctx, "DELETE FROM coach WHERE id = $1", createdCoachID); err != nil {
+					t.Logf("Warning: Failed to cleanup coach %s: %v", createdCoachID, err)
+				} else {
+					t.Logf("🧹 Cleaned up coach: %s", createdCoachID)
+				}
+			}
+		}()
 		// 1. Create a coach (simulating coach signup)
 		coach, err := queries.CreateCoach(ctx, db.CreateCoachParams{
 			Email: "coach-" + uuid.New().String() + "@example.com",
@@ -135,6 +155,7 @@ func TestSmokeTest(t *testing.T) {
 			Tz:    "UTC",
 		})
 		require.NoError(t, err)
+		createdCoachID = coach.ID.String() // Store for cleanup
 
 		// 2. Coach creates athlete via web form (real user action)
 		athleteEmail := "athlete-" + uuid.New().String() + "@example.com"
@@ -160,6 +181,7 @@ func TestSmokeTest(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, athletes, 1)
 		athlete := athletes[0]
+		createdAthleteID = athlete.ID.String() // Store for cleanup
 		require.Equal(t, "Test Athlete", athlete.Name)
 		require.Equal(t, athleteEmail, athlete.Email.String)
 
