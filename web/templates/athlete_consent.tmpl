@@ -1,0 +1,12 @@
+<!-- web/templates/athlete_consent.tmpl -->
+{{ define "athlete_consent" }}
+{{ template "base_top" . }}
+<article>
+  <h3>Connect Strava</h3>
+  <p>You’re joining your coach on CoachGPT. We’ll read your Strava training to create weekly insights.</p>
+  <a class="contrast"
+     href="/oauth/strava/start?aid={{ .AthleteID }}&t={{ .Token }}">Connect Strava</a>
+</article>
+{{ template "base_bottom" . }}
+{{ end }}
+

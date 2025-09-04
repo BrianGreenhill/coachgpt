@@ -1,0 +1,81 @@
+{{ define "home" }}
+{{ template "base_top" . }}
+<div class="container">
+  <!-- HERO SECTION: Clear value prop + CTA above fold -->
+  <header style="text-align: center; padding: 4rem 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; color: white; margin: 2rem 0;">
+    <h1 style="font-size: 3.5rem; margin-bottom: 1rem; color: white; font-weight: 700;">🏃‍♂️ CoachGPT</h1>
+    <p style="font-size: 1.5rem; margin-bottom: 0.5rem; color: #f0f0f0; font-weight: 500;">Stop chasing athlete data.</p>
+    <p style="font-size: 1.2rem; margin-bottom: 2.5rem; color: #e0e0e0;">Get automatic Strava sync, clear workout insights, and simple tools that save you 10+ hours per week.</p>
+    
+    <!-- PRIMARY CTA -->
+    <div style="max-width: 400px; margin: 0 auto;">
+      <form method="post" action="/interest">
+        <input type="email" name="email" placeholder="Enter your coaching email" required 
+               style="width: 100%; padding: 16px 20px; margin-bottom: 16px; border: none; border-radius: 8px; font-size: 16px; box-sizing: border-box; font-weight: 500;" />
+        <button type="submit" 
+                style="width: 100%; padding: 16px; background: #28a745; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 18px; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px;">
+          Get Early Access (FREE)
+        </button>
+      </form>
+      <p style="font-size: 0.9rem; margin-top: 12px; color: #d0d0d0;">⚡ Join 200+ coaches • No spam, ever</p>
+    </div>
+  </header>
+
+  <!-- SOCIAL PROOF & URGENCY -->
+  <section style="text-align: center; margin: 3rem 0; padding: 2rem; background: #f8f9fa; border-radius: 12px; border-left: 4px solid #28a745;">
+    <p style="margin: 0; font-size: 1.1rem; color: #333;"><strong>🔥 Limited Beta:</strong> Only accepting 50 more coaches this month</p>
+  </section>
+
+  <!-- SIMPLIFIED BENEFITS: Rule of 3 -->
+  <section style="margin: 4rem 0;">
+    <h2 style="text-align: center; margin-bottom: 3rem; font-size: 2.5rem; color: #333;">Why coaches choose CoachGPT</h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 3rem;">
+      <div style="text-align: center; padding: 2rem;">
+        <div style="font-size: 4rem; margin-bottom: 1rem;">⚡</div>
+        <h3 style="margin-bottom: 1rem; color: #333; font-size: 1.4rem;">Save 10+ Hours/Week</h3>
+        <p style="color: #666; font-size: 1.1rem;">Automatic Strava sync means no more manual data entry or chasing athletes for workout details.</p>
+      </div>
+      <div style="text-align: center; padding: 2rem;">
+        <div style="font-size: 4rem; margin-bottom: 1rem;">📊</div>
+        <h3 style="margin-bottom: 1rem; color: #333; font-size: 1.4rem;">Spot Trends Instantly</h3>
+        <p style="color: #666; font-size: 1.1rem;">Clean workout lists with key metrics help you identify patterns and adjust training plans faster.</p>
+      </div>
+      <div style="text-align: center; padding: 2rem;">
+        <div style="font-size: 4rem; margin-bottom: 1rem;">🎯</div>
+        <h3 style="margin-bottom: 1rem; color: #333; font-size: 1.4rem;">Better Athlete Results</h3>
+        <p style="color: #666; font-size: 1.1rem;">Data-driven insights lead to smarter training decisions and improved athlete performance.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECONDARY CTA -->
+  <section style="text-align: center; margin: 4rem 0; padding: 3rem 2rem; background: #f8f9fa; border-radius: 12px;">
+    <h2 style="margin-bottom: 1rem; color: #333; font-size: 2rem;">Ready to transform your coaching?</h2>
+    <p style="font-size: 1.1rem; margin-bottom: 2rem; color: #666;">Join the waitlist and be among the first to experience effortless athlete data management.</p>
+    <div style="max-width: 400px; margin: 0 auto;">
+      <form method="post" action="/interest">
+        <input type="email" name="email" placeholder="Enter your coaching email" required 
+               style="width: 100%; padding: 16px 20px; margin-bottom: 16px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; box-sizing: border-box;" />
+        <button type="submit" 
+                style="width: 100%; padding: 16px; background: #667eea; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 18px; cursor: pointer;">
+          Claim Your Spot
+        </button>
+      </form>
+    </div>
+  </section>
+
+  <!-- MINIMAL FEATURE LIST -->
+  <details style="margin: 3rem 0; border: 1px solid #ddd; border-radius: 8px; padding: 1rem;">
+    <summary style="font-weight: bold; cursor: pointer; font-size: 1.1rem; color: #333;">🔧 Technical Details (for the curious)</summary>
+    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #eee;">
+      <ul style="color: #666; line-height: 1.6;">
+        <li>Secure Strava OAuth integration</li>
+        <li>Real-time workout syncing</li>
+        <li>Automatic data updates</li>
+        <li>Simple athlete invitation system</li>
+      </ul>
+    </div>
+  </details>
+</div>
+{{ template "base_bottom" . }}
+{{ end }}

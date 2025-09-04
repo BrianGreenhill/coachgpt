@@ -1,0 +1,146 @@
+{{ define "workouts" }}
+{{ template "base_top" . }}
+<div class="container mx-auto px-4 py-8">
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-900">Workouts</h1>
+            <div class="text-sm text-gray-600">
+                <strong>{{.Athlete.Name}}</strong> ({{.Athlete.Email.String}})
+            </div>
+        </div>
+
+        {{if .Athlete.StravaAthleteID.Valid}}
+            <div class="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
+                ✅ Connected to Strava (ID: {{.Athlete.StravaAthleteID.Int64}})
+                {{if .Athlete.LastStravaSync.Valid}}
+                    - Last sync: {{.Athlete.LastStravaSync.Time.Format "Jan 2, 2006 3:04 PM"}}
+                {{end}}
+            </div>
+        {{else}}
+            <div class="mb-4 p-3 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded">
+                ⚠️ Not connected to Strava
+                <a href="/oauth/strava/start?aid={{.Athlete.ID}}" class="underline ml-2">Connect now</a>
+            </div>
+        {{end}}
+
+        {{if .Workouts}}
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sport</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Distance</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Elevation</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg HR</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {{range .Workouts}}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {{if .StartedAt.Valid}}
+                                    {{.StartedAt.Time.Format "Jan 2, 2006"}}
+                                    <div class="text-xs text-gray-500">{{.StartedAt.Time.Format "3:04 PM"}}</div>
+                                {{else}}-{{end}}
+                            </td>
+                            <td class="px-6 py-4 text-sm text-gray-900">
+                                <div class="font-medium">
+                                    {{if .Name.Valid}}{{.Name.String}}{{else}}Untitled Workout{{end}}
+                                </div>
+                                <div class="text-xs text-gray-500">{{.Source}} #{{.SourceID}}</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                    {{if eq .Sport "Run"}}bg-red-100 text-red-800
+                                    {{else if eq .Sport "Ride"}}bg-blue-100 text-blue-800
+                                    {{else if eq .Sport "Swim"}}bg-cyan-100 text-cyan-800
+                                    {{else}}bg-gray-100 text-gray-800{{end}}">
+                                    {{.Sport}}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {{$hours := div .DurationSec 3600}}
+                                {{$minutes := div (mod .DurationSec 3600) 60}}
+                                {{$seconds := mod .DurationSec 60}}
+                                {{if gt $hours 0}}{{$hours}}h {{$minutes}}m{{else}}{{$minutes}}m {{$seconds}}s{{end}}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {{if .DistanceM.Valid}}
+                                    {{$km := divf .DistanceM.Float64 1000}}
+                                    {{printf "%.2f km" $km}}
+                                {{else}}-{{end}}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {{if .ElevGainM.Valid}}
+                                    {{printf "%.0f m" .ElevGainM.Float64}}
+                                {{else}}-{{end}}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {{if .AvgHr.Valid}}
+                                    {{.AvgHr.Int32}} bpm
+                                {{else}}-{{end}}
+                            </td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="mt-6 text-sm text-gray-500 text-center">
+                Showing {{len .Workouts}} workouts
+            </div>
+        {{else}}
+            <div class="text-center py-12">
+                <div class="text-gray-400 text-6xl mb-4">🏃‍♂️</div>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">No workouts found</h3>
+                <p class="text-gray-500 mb-4">
+                    {{if .Athlete.StravaAthleteID.Valid}}
+                        Workouts will appear here after syncing with Strava.
+                    {{else}}
+                        Connect to Strava to start importing workouts.
+                    {{end}}
+                </p>
+            </div>
+        {{end}}
+
+        <div class="mt-8 flex justify-between">
+            <a href="/dashboard" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                ← Back to Dashboard
+            </a>
+            {{if .Athlete.StravaAthleteID.Valid}}
+                <button onclick="triggerSync()" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                    🔄 Sync with Strava
+                </button>
+            {{end}}
+        </div>
+    </div>
+</div>
+
+<script>
+function triggerSync() {
+    if (confirm('Trigger a manual sync with Strava?')) {
+        fetch('/athletes/{{.Athlete.ID}}/sync', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => {
+            if (response.ok) {
+                alert('Sync job queued! Refresh the page in a few moments to see new workouts.');
+            } else {
+                alert('Failed to trigger sync. Please try again.');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to trigger sync. Please try again.');
+        });
+    }
+}
+</script>
+{{ template "base_bottom" . }}
+{{ end }}

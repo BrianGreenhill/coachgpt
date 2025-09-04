@@ -1,0 +1,9 @@
+{{ define "interest_submitted" }}
+{{ template "base_top" . }}
+<article>
+  <h3>Thanks!</h3>
+  <p>Thanks for your interest. We'll notify <strong>{{ .Email }}</strong> when we launch.</p>
+  <p><a href="/">Back to home</a></p>
+</article>
+{{ template "base_bottom" . }}
+{{ end }}
