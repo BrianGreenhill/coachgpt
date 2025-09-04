@@ -1,16 +1,22 @@
 {{ define "base_top" }}
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{ .Title }} • CoachGPT</title>
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
   <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@2/css/pico.min.css" />
+  <style>
+    /* Simple light theme override */
+    body { 
+      background-color: #ffffff !important; 
+      color: #333333 !important; 
+    }
+  </style>
 </head>
 <body>
   <main class="container">
-    <header><h2>CoachGPT</h2></header>
 {{ end }}
 
 {{ define "base_bottom" }}

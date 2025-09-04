@@ -7,6 +7,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	scs "github.com/alexedwards/scs/v2"
@@ -79,5 +81,38 @@ func main() {
 	h := hlog.NewHandler(logger)(s.Router)
 
 	srv := &http.Server{Addr: ":" + cfg.Port, Handler: sess.LoadAndSave(h)}
-	log.Fatal(srv.ListenAndServe())
+	log.Printf("starting app on :%s", cfg.Port)
+
+	// Setup graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	// Start server in a goroutine
+	serverErr := make(chan error, 1)
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			serverErr <- err
+		}
+		close(serverErr)
+	}()
+
+	// Wait for shutdown signal or server error
+	select {
+	case sig := <-sigChan:
+		log.Printf("Received signal %v, shutting down gracefully...", sig)
+
+		// Create a context with timeout for graceful shutdown
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		if err := srv.Shutdown(ctx); err != nil {
+			log.Printf("Server shutdown error: %v", err)
+		}
+	case err := <-serverErr:
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	log.Println("Server shutdown complete")
 }

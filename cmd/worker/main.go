@@ -8,8 +8,11 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/briangreenhill/coachgpt/internal/config"
@@ -66,7 +69,32 @@ func main() {
 	})
 
 	log.Println("Worker running...")
-	log.Fatal(srv.Run(mux))
+
+	// Setup graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	// Start server in a goroutine
+	serverErr := make(chan error, 1)
+	go func() {
+		if err := srv.Run(mux); err != nil {
+			serverErr <- err
+		}
+		close(serverErr)
+	}()
+
+	// Wait for shutdown signal or server error
+	select {
+	case sig := <-sigChan:
+		log.Printf("Received signal %v, shutting down gracefully...", sig)
+		srv.Shutdown()
+	case err := <-serverErr:
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	log.Println("Worker shutdown complete")
 }
 
 // isRetryableError determines if an error should trigger a job retry

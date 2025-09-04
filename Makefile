@@ -5,7 +5,8 @@ BIN=coachgpt
 .PHONY: dev run build migrate-up migrate-down sqlc gen tidy fmt worker manual-sync test smoke lint lint-fix
 
 dev:
-	go run ./cmd/api
+	@echo "Starting API server and worker..."
+	@go run ./cmd/api & go run ./cmd/worker & wait
 run:
 	go run ./cmd/api
 worker:

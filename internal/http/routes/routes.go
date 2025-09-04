@@ -86,7 +86,6 @@ func New(opts ServerOptions) *Server {
 	r.Get("/invite", s.handleAthleteInvite) // public, but needs token
 	r.Get("/oauth/strava/start", s.handleStravaStart)
 	r.Get("/oauth/strava/callback", s.handleStravaCallback)
-	r.Get("/interest", s.handleInterestForm)
 	r.Post("/interest", s.handleInterestSubmit)
 
 	r.Group(func(pr chi.Router) {
@@ -532,10 +531,6 @@ func (s *Server) handleTriggerSync(w http.ResponseWriter, r *http.Request) {
 	if _, err := w.Write([]byte("sync job queued")); err != nil {
 		log.Printf("Error writing sync response: %v", err)
 	}
-}
-
-func (s *Server) handleInterestForm(w http.ResponseWriter, r *http.Request) {
-	s.render(w, "interest", map[string]any{"Title": "Get early access"})
 }
 
 func (s *Server) handleInterestSubmit(w http.ResponseWriter, r *http.Request) {
