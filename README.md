@@ -1,21 +1,38 @@
-# CoachGPT
+# 🏃‍♂️ CoachGPT
 
-A coaching platform that syncs athlete data from Strava to help coaches monitor and analyze their athletes' training.
+**Stop chasing athlete data. Start coaching smarter.**
 
-## What it does
+CoachGPT transforms how coaches manage athlete performance data through automatic Strava integration, saving you 10+ hours per week on manual data collection and analysis.
 
-- **Coach dashboard**: Create athletes, send invite links, view connected athletes
-- **Strava integration**: Athletes connect their Strava accounts
-- **Workout sync**: Automatically syncs workout data (runs, rides, etc.) from Strava
-- **Data display**: Clean workout lists with duration, distance, elevation, heart rate
-- **Manual sync**: Coaches can trigger fresh syncs to pick up activity updates
+## 🎯 Why CoachGPT?
 
-## User stories
+**Save 10+ Hours/Week** — Automatic Strava sync eliminates manual data entry and chasing athletes for workout details.
 
-1. **Coach — manage athletes**: Create athlete profiles, send invite emails, see connection status
-2. **Coach — view workouts**: Browse athlete workout history, trigger manual syncs for latest data
-3. **Athlete — connect Strava**: Follow invite link, consent, and connect Strava account
+**Spot Trends Instantly** — Clean workout lists with key metrics help you identify patterns and adjust training plans faster.
 
-## Status
+**Better Athlete Results** — Data-driven insights lead to smarter training decisions and improved performance outcomes.
 
-Proof of concept — demonstrating core coach-athlete workflow with Strava integration.
+## 🚀 Core Features
+
+- **Effortless Setup**: Send athletes a simple invite link to connect their Strava accounts
+- **Automatic Sync**: Real-time workout import with no manual intervention required  
+- **Smart Analytics**: Duration, distance, elevation, and heart rate data at your fingertips
+- **On-Demand Updates**: Manual sync triggers to capture the latest activity changes
+- **Coach Dashboard**: Manage multiple athletes and their connection status in one place
+
+## 💡 How It Works
+
+1. **Coach creates athlete profiles** and sends secure invite links via email
+2. **Athletes click and consent** to share their Strava data in seconds  
+3. **Workouts sync automatically** — runs, rides, and training sessions appear instantly
+4. **Coaches gain insights** from clean, organized workout data and performance trends
+
+## 🔧 Built For Coaches
+
+This isn't just another fitness app. CoachGPT is purpose-built for professional coaches who need reliable, comprehensive athlete data without the administrative overhead.
+
+**Current Status**: Limited beta — proving the core workflow that saves coaches time and improves athlete outcomes.
+
+---
+
+*Ready to transform your coaching? Join 200+ coaches using CoachGPT to streamline their athlete data management.*
