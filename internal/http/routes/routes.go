@@ -86,6 +86,8 @@ func New(opts ServerOptions) *Server {
 	r.Get("/invite", s.handleAthleteInvite) // public, but needs token
 	r.Get("/oauth/strava/start", s.handleStravaStart)
 	r.Get("/oauth/strava/callback", s.handleStravaCallback)
+	r.Get("/interest", s.handleInterestForm)
+	r.Post("/interest", s.handleInterestSubmit)
 
 	r.Group(func(pr chi.Router) {
 		pr.Use(s.sessionToContext)
@@ -376,7 +378,8 @@ func (s *Server) handleMagicLink(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
-	http.Redirect(w, r, "/dashboard", http.StatusFound)
+	// Render public home/landing page
+	s.render(w, "home", map[string]any{"Title": "CoachGPT — AI for coaches"})
 }
 
 // ---- Magic link flow
@@ -529,4 +532,25 @@ func (s *Server) handleTriggerSync(w http.ResponseWriter, r *http.Request) {
 	if _, err := w.Write([]byte("sync job queued")); err != nil {
 		log.Printf("Error writing sync response: %v", err)
 	}
+}
+
+func (s *Server) handleInterestForm(w http.ResponseWriter, r *http.Request) {
+	s.render(w, "interest", map[string]any{"Title": "Get early access"})
+}
+
+func (s *Server) handleInterestSubmit(w http.ResponseWriter, r *http.Request) {
+	_ = r.ParseForm()
+	em := r.Form.Get("email")
+	if em == "" {
+		http.Error(w, "email required", http.StatusBadRequest)
+		return
+	}
+
+	// Send a notification email to the inbox you check (for now, send to the same address to capture in MailHog)
+	if s.Email != nil {
+		html := "<p>New interest sign-up: " + em + "</p>"
+		_ = s.Email.Send(em, "CoachGPT interest signup", html)
+	}
+
+	s.render(w, "interest_submitted", map[string]any{"Title": "Thanks", "Email": em})
 }

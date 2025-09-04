@@ -1,0 +1,50 @@
+{{ define "home" }}
+{{ template "base_top" . }}
+<div class="container">
+  <header>
+    <h1>CoachGPT — Smarter coaching with your athletes’ Strava data</h1>
+    <p class="lead">Automated syncing, clear workout lists, and simple coach tools to keep athletes on track.</p>
+  </header>
+
+  <section>
+    <h2>Why CoachGPT?</h2>
+    <ul>
+      <li><strong>See everything in one place</strong> — view recent workouts, duration, distance, elevation, and average heart rate for each athlete.</li>
+      <li><strong>Sync on demand</strong> — trigger a manual Strava sync to pick up recent edits (like updated activity titles) instantly.</li>
+      <li><strong>Invite athletes</strong> — create athletes, send an invite link, and have them connect Strava with one click.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>User stories</h2>
+    <article>
+      <h3>Coach — quick review</h3>
+      <p>As a coach, I need to quickly review an athlete's recent sessions and spot trends. With CoachGPT I can see a clean list of workouts and the ability to refresh data from Strava.</p>
+    </article>
+    <article>
+      <h3>Coach — manage athletes</h3>
+      <p>As a coach, I want to add athletes and send them invites so they can connect their Strava accounts and share data seamlessly.</p>
+    </article>
+    <article>
+      <h3>Athlete — connect Strava</h3>
+      <p>As an athlete, I want to consent and connect Strava so my coach can help me based on my real training data.</p>
+    </article>
+  </section>
+
+  <section>
+    <h2>Features</h2>
+    <ul>
+      <li>Strava OAuth + token storage</li>
+      <li>Background syncing jobs (queue + worker)</li>
+      <li>Upserts for activities — keeps titles and stats up-to-date</li>
+      <li>Lightweight templates and HTMX-ready UI for future enhancements</li>
+    </ul>
+  </section>
+
+  <section class="cta">
+    <a class="contrast" href="/interest">Join the waitlist</a>
+    <a href="/login" style="margin-left:1rem">Log in as coach</a>
+  </section>
+</div>
+{{ template "base_bottom" . }}
+{{ end }}

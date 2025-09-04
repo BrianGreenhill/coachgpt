@@ -1,0 +1,12 @@
+{{ define "interest" }}
+{{ template "base_top" . }}
+<article>
+  <h3>Get early access</h3>
+  <p>Enter your email and we’ll let you know when CoachGPT is ready for beta testing.</p>
+  <form method="post" action="/interest">
+    <input type="email" name="email" placeholder="you@example.com" required />
+    <button type="submit">Notify me</button>
+  </form>
+</article>
+{{ template "base_bottom" . }}
+{{ end }}
