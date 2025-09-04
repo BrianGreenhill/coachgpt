@@ -25,6 +25,7 @@ import (
 	"github.com/briangreenhill/coachgpt/internal/auth"
 	"github.com/briangreenhill/coachgpt/internal/config"
 	"github.com/briangreenhill/coachgpt/internal/db"
+	"github.com/briangreenhill/coachgpt/internal/email"
 	appmw "github.com/briangreenhill/coachgpt/internal/http/middleware"
 	"github.com/briangreenhill/coachgpt/internal/jobs"
 )
@@ -40,20 +41,31 @@ type Server struct {
 	StravaConf  *oauth2.Config
 	StateSecret string // for signing oauth2 state param
 	RedisAddr   string
+	Email       email.Sender
 }
 
-func New(sess *scs.SessionManager, tmpl *template.Template, queries *db.Queries, ml auth.MagicLink, inv auth.InviteLink, cfg config.Config) *Server {
+type ServerOptions struct {
+	Sess   *scs.SessionManager
+	Tmpl   *template.Template
+	Q      *db.Queries
+	Magic  auth.MagicLink
+	Invite auth.InviteLink
+	Cfg    config.Config
+	Email  email.Sender
+}
+
+func New(opts ServerOptions) *Server {
 	r := chi.NewRouter()
 	r.Use(chimw.RequestID)
 	r.Use(chimw.RealIP)
 	r.Use(chimw.Logger)
 	r.Use(chimw.Recoverer)
 
-	s := &Server{Router: r, Sess: sess, Tmpl: tmpl, Q: queries, Magic: ml, BaseURL: cfg.BaseURL, Invite: inv, StateSecret: cfg.JWTSecret, RedisAddr: cfg.RedisAddr}
+	s := &Server{Router: r, Sess: opts.Sess, Tmpl: opts.Tmpl, Q: opts.Q, Magic: opts.Magic, BaseURL: opts.Cfg.BaseURL, Invite: opts.Invite, StateSecret: opts.Cfg.JWTSecret, RedisAddr: opts.Cfg.RedisAddr, Email: opts.Email}
 	s.StravaConf = &oauth2.Config{
-		ClientID:     cfg.Strava.ClientID,
-		ClientSecret: cfg.Strava.ClientSecret,
-		RedirectURL:  cfg.BaseURL + "/oauth/strava/callback",
+		ClientID:     opts.Cfg.Strava.ClientID,
+		ClientSecret: opts.Cfg.Strava.ClientSecret,
+		RedirectURL:  opts.Cfg.BaseURL + "/oauth/strava/callback",
 		Scopes:       []string{"read", "activity:read_all"},
 		Endpoint: oauth2.Endpoint{
 			AuthURL:  "https://www.strava.com/oauth/authorize",
@@ -134,12 +146,12 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleCreateAthlete(w http.ResponseWriter, r *http.Request) {
 	_ = r.ParseForm()
 	name := strings.TrimSpace(r.Form.Get("name"))
-	email := strings.TrimSpace(r.Form.Get("email"))
+	emailAddr := strings.TrimSpace(r.Form.Get("email"))
 	if name == "" {
 		http.Error(w, "name required", 400)
 		return
 	}
-	if email == "" {
+	if emailAddr == "" {
 		http.Error(w, "email required", 400)
 		return
 	}
@@ -150,7 +162,7 @@ func (s *Server) handleCreateAthlete(w http.ResponseWriter, r *http.Request) {
 	a, err := s.Q.CreateAthlete(r.Context(), db.CreateAthleteParams{
 		CoachID: coachUUID, // <- uuid.UUID, not pgtype.UUID
 		Name:    name,
-		Email:   pgtype.Text{String: email, Valid: true},
+		Email:   pgtype.Text{String: emailAddr, Valid: true},
 		Tz:      "Europe/Berlin",
 	})
 	if err != nil {
@@ -160,6 +172,16 @@ func (s *Server) handleCreateAthlete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	invite := s.Invite.URL(coachID, a.ID.String(), 7*24*time.Hour)
+
+	// Send invite email if sender is configured
+	if s.Email != nil {
+		inviteHTML := "<p>You have been invited to CoachGPT. Click the link below to connect to Strava:</p>" +
+			"<p><a href=\"" + invite + "\">Connect to CoachGPT</a></p>"
+		if err := s.Email.Send(emailAddr, "You're invited to CoachGPT", inviteHTML); err != nil {
+			log.Printf("failed to send invite email to %s: %v", emailAddr, err)
+		}
+	}
+
 	s.render(w, "invite_created", map[string]any{
 		"Title":     "Invite Link",
 		"InviteURL": invite,
@@ -326,22 +348,30 @@ func (s *Server) handleMagicLink(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad form", 400)
 		return
 	}
-	email := strings.TrimSpace(r.Form.Get("email"))
-	if email == "" {
+	emailAddr := strings.TrimSpace(r.Form.Get("email"))
+	if emailAddr == "" {
 		http.Error(w, "email required", 400)
 		return
 	}
 
-	url, err := s.issueMagicLink(r.Context(), email)
+	url, err := s.issueMagicLink(r.Context(), emailAddr)
 	if err != nil {
-		log.Printf("[auth] issue link failed for %s: %v", email, err)
+		log.Printf("[auth] issue link failed for %s: %v", emailAddr, err)
 		http.Error(w, "could not issue link", 500)
 		return
 	}
 
-	log.Printf("[auth] magic link for %s: %s", email, url)
+	// Send email via configured sender
+	if s.Email != nil {
+		html := "<p>Click the link below to sign in:</p><p><a href=\"" + url + "\">Sign in</a></p>"
+		if err := s.Email.Send(emailAddr, "Your CoachGPT sign-in link", html); err != nil {
+			log.Printf("failed to send magic link email to %s: %v", emailAddr, err)
+		}
+	}
+
+	log.Printf("[auth] magic link for %s: %s", emailAddr, url)
 	s.render(w, "magic_sent", map[string]any{
-		"Title": "Magic Link Sent", "Email": email, "URL": url,
+		"Title": "Magic Link Sent", "Email": emailAddr, "URL": url,
 	})
 }
 

@@ -18,6 +18,7 @@ import (
 	"github.com/briangreenhill/coachgpt/internal/auth"
 	"github.com/briangreenhill/coachgpt/internal/config"
 	"github.com/briangreenhill/coachgpt/internal/db"
+	"github.com/briangreenhill/coachgpt/internal/email"
 	"github.com/briangreenhill/coachgpt/internal/http/routes"
 	"github.com/briangreenhill/coachgpt/internal/jobs"
 	"github.com/google/uuid"
@@ -121,7 +122,15 @@ func TestSmokeTest(t *testing.T) {
 	ml := auth.MagicLink{Secret: []byte(cfg.JWTSecret), BaseURL: cfg.BaseURL}
 	inv := auth.InviteLink{Secret: []byte(cfg.JWTSecret)}
 
-	server := routes.New(sess, tmpl, queries, ml, inv, cfg)
+	server := routes.New(routes.ServerOptions{
+		Sess:   sess,
+		Tmpl:   tmpl,
+		Q:      queries,
+		Magic:  ml,
+		Invite: inv,
+		Cfg:    cfg,
+		Email:  email.StdoutSender{},
+	})
 
 	// Override Strava endpoints to use mock server
 	server.StravaConf.Endpoint.AuthURL = mockStrava.server.URL + "/oauth/authorize"

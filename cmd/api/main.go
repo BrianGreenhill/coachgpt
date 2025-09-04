@@ -17,6 +17,7 @@ import (
 	"github.com/briangreenhill/coachgpt/internal/auth"
 	"github.com/briangreenhill/coachgpt/internal/config"
 	"github.com/briangreenhill/coachgpt/internal/db"
+	"github.com/briangreenhill/coachgpt/internal/email"
 	"github.com/briangreenhill/coachgpt/internal/http/routes"
 )
 
@@ -62,8 +63,19 @@ func main() {
 		BaseURL: cfg.BaseURL,
 	}
 
+	// Mail sender (MailHog on localhost:1025)
+	sender := email.NewSMTPSender("localhost:1025", "no-reply@coachgpt.local")
+
 	// Router / server
-	s := routes.New(sess, tmpl, queries, ml, inv, cfg)
+	s := routes.New(routes.ServerOptions{
+		Sess:   sess,
+		Tmpl:   tmpl,
+		Q:      queries,
+		Magic:  ml,
+		Invite: inv,
+		Cfg:    cfg,
+		Email:  sender,
+	})
 	h := hlog.NewHandler(logger)(s.Router)
 
 	srv := &http.Server{Addr: ":" + cfg.Port, Handler: sess.LoadAndSave(h)}
